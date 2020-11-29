@@ -6,6 +6,8 @@ library(lmomco)
 library(doParallel)
 library(ggplot2)
 
+spi_timescale = 90
+
 #define some functions
 #compute timeseries of SPI using the 
 #Unbiased Sample Probability-Weighted Moments method (following Beguer ́ıa et al 2014)
@@ -112,7 +114,7 @@ error_comp = function(X){
   temp_filtered = data_filtered %>%
     filter(year(time) %in% c(random_years, test_year)) 
   
-  temp_spi = spi_point_ghcn_moments(temp_filtered, 30)
+  temp_spi = spi_point_ghcn_moments(temp_filtered, spi_timescale)
   
   temp_test = temp_spi %>% filter(year(time) == test_year)
   temp_real = full_spi %>% filter(year(time) == test_year)
@@ -145,7 +147,7 @@ random_stations = filtered_stations[random_index,]
 monte_carlo_out = list()
 monte_carlo_summary = list()
 
-for(s in 53:length(random_stations$id)){
+for(s in 52:60){
 #for(s in 1:2){
   time = Sys.time()
   data_raw = ghcnd_search(
@@ -172,7 +174,7 @@ for(s in 53:length(random_stations$id)){
     select(date, prcp)%>%
     rename(time = date, data = prcp)
   
-    full_spi = spi_point_ghcn_moments(data_filtered, 30)
+    full_spi = spi_point_ghcn_moments(data_filtered, spi_timescale)
     
     years = 1:(length(annual_nobs$year)-1)
     
