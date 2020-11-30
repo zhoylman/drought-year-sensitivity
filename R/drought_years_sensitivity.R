@@ -6,6 +6,7 @@ library(lmomco)
 library(doParallel)
 library(ggplot2)
 
+#define timescale of interest
 spi_timescale = 90
 
 #define some functions
@@ -104,8 +105,10 @@ spi_point_ghcn_moments = function(precip_data, time_scale){
   }
 }
 
+#define not it function with negate
 `%notin%` = Negate(`%in%`)
 
+#define error computation (MAE)
 error_comp = function(X){
   random_years = sample(unique(year(data_filtered$time)), X, replace = F)
   remaining_years = unique(year(data_filtered$time))[unique(year(data_filtered$time)) %notin% random_years]
@@ -131,49 +134,105 @@ error_comp = function(X){
   print(X)
 }
 
-stations = ghcnd_stations()
+#To compute valid stations, run below (saved as RDS)
+# #import all stations
+# stations = ghcnd_stations()
+# 
+# #initial filter for stations with potentially enough data
+# filtered_stations = stations %>%
+#   filter(element == 'PRCP',
+#          first_year <= 1940,
+#          last_year == 2020,
+#          latitude > 22 & latitude < 50,
+#          longitude < -50) 
+# 
+# #rev up cluster to find stations with more than XX years of complete data
+# cl = makeCluster(30)
+# registerDoParallel(cl)
+# 
+# #in parallel, compute the number of valid years in sequence
+# nobs_list = foreach(s = 1:length(filtered_stations$id))%dopar%{
+#   library(rnoaa)
+#   library(tidyverse)
+#   library(lubridate)
+#   #import raw data
+#   data_raw = ghcnd_search(
+#     filtered_stations$id[s],
+#     date_min = NULL,
+#     date_max = NULL,
+#     var = "PRCP"
+#   ) 
+#   
+#   #compute obs per year
+#   annual_nobs = data_raw %$%
+#     prcp %>%
+#     mutate(year = year(date)) %>%
+#     drop_na() %>%
+#     group_by(year) %>%
+#     summarize(n = length(prcp)) %>%
+#     filter(n >= 365) 
+#   
+#   #define out df
+#   out = data.frame(id = filtered_stations$id[s], nobs = length(annual_nobs$year))
+#   
+#   #export in foreach
+#   out
+# }
+# 
+# #stop cluster
+# stopCluster(cl)
+# 
+# #combine results to single df for analysis
+# valid_stations = data.table::rbindlist(nobs_list) %>%
+#   filter(nobs >=100)
+# 
+# saveRDS(valid_stations, file = '/home/zhoylman/drought-year-sensitivity/data/valid_stations.RDS')
 
-filtered_stations = stations %>%
+stations = ghcnd_stations()
+valid_station_ids = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations.RDS')
+
+#initial filter for stations with potentially enough data
+valid_stations = stations %>%
   filter(element == 'PRCP',
-         first_year <= 1900,
+         first_year <= 1940,
          last_year == 2020,
          latitude > 22 & latitude < 50,
-         longitude < -50) 
+         longitude < -50,
+         id %in% valid_station_ids$id)
 
+#now for the real anlysis....
 set.seed(8)
-random_index = sample(1:length(filtered_stations$id), 200)
-random_stations = filtered_stations[random_index,]
 
 monte_carlo_out = list()
 monte_carlo_summary = list()
 
-for(s in 52:60){
-#for(s in 1:2){
-  time = Sys.time()
-  data_raw = ghcnd_search(
-    random_stations$id[s],
-    date_min = NULL,
-    date_max = NULL,
-    var = "PRCP",
-  ) 
-  
-  annual_nobs = data_raw %$%
-    prcp %>%
-    mutate(year = year(date)) %>%
-    drop_na() %>%
-    group_by(year) %>%
-    summarize(n = length(prcp)) %>%
-    filter(n >= 365) 
-  
-  print(paste0('Years = ', length(annual_nobs$year)))
-  
-  if(length(annual_nobs$year) > 80){data_filtered = data_raw %$%
-    prcp %>%
-    mutate(year = year(date)) %>%
-    filter(year %in% annual_nobs$year) %>% # filter for full years
-    select(date, prcp)%>%
-    rename(time = date, data = prcp)
-  
+for(s in 1:length(valid_stations$id)){
+  tryCatch({
+    time = Sys.time()
+    data_raw = ghcnd_search(
+      valid_stations$id[s],
+      date_min = NULL,
+      date_max = NULL,
+      var = "PRCP"
+    ) 
+    
+    annual_nobs = data_raw %$%
+      prcp %>%
+      mutate(year = year(date)) %>%
+      drop_na() %>%
+      group_by(year) %>%
+      summarize(n = length(prcp)) %>%
+      filter(n >= 365) 
+    
+    print(paste0('Years = ', length(annual_nobs$year)))
+    
+    data_filtered = data_raw %$%
+      prcp %>%
+      mutate(year = year(date)) %>%
+      filter(year %in% annual_nobs$year) %>% # filter for full years
+      select(date, prcp)%>%
+      rename(time = date, data = prcp)
+    
     full_spi = spi_point_ghcn_moments(data_filtered, spi_timescale)
     
     years = 1:(length(annual_nobs$year)-1)
@@ -182,10 +241,10 @@ for(s in 52:60){
                            out = NA)
     
     ###################################
-    cl = makeCluster(7)
+    cl = makeCluster(30)
     registerDoParallel(cl)
     
-    years = 1:(length(annual_nobs$year)-1)
+    years = 1:100
     n.simulations = 20
     set.seed(10)
     monte_carlo = list()
@@ -212,38 +271,39 @@ for(s in 52:60){
     monte_carlo_summary[[s]] = summary
     
     plot = ggplot()+
-      geom_ribbon(data = summary, aes(x = years, ymax = `90%`, ymin = `10%`), fill = "grey70")+
-      geom_line(data = summary, aes(x = years, y = `50%`), size = 2)+
+      geom_ribbon(data = summary[1:100,], aes(x = years[1:100], ymax = `90%`, ymin = `10%`), fill = "grey70")+
+      geom_line(data = summary[1:100,], aes(x = years[1:100], y = `50%`), size = 2)+
       theme_bw(base_size = 16)+
       labs(y = 'Mean Absolute Error', x = 'Years in Climatology')+
-      ggtitle(paste0('GHCN Site #: ',random_stations$id[s], '\n', random_stations$latitude[s], ',', random_stations$longitude[s]))+
+      ggtitle(paste0('GHCN Site #: ',valid_stations$id[s]))+
       theme(plot.title = element_text(hjust = 0.5))
     
-    ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/site_',random_stations$id[s],'.png'),)
-    print(paste0('Site ', s, ' of ', 200, ' complete! Time = ', Sys.time()- time))
-  }
-  else{
-    print(paste0('Less than 80 Years of Data for Site ', s, ' of ', 200))
-  }
+    ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/site_',valid_stations$id[s],'_',spi_timescale,'_day','.png'),
+           height = 6, width = 8, units = 'in')
+    
+    saveRDS(monte_carlo_out, file =  paste0('/home/zhoylman/drought-year-sensitivity/data/monte_carlo_out_',spi_timescale,'_day','.RDS'))
+    
+    print(paste0('Site ', s, ' of ', 53, ' complete! Time = ', Sys.time()- time))
+  }, error=function(e){})
 }
 
-saveRDS(monte_carlo_out, '/home/zhoylman/drought-year-sensitivity/data/monte_carlo_out.RDS')
-saveRDS(monte_carlo_summary, '/home/zhoylman/drought-year-sensitivity/data/monte_carlo_summary_out.RDS')
+saveRDS(monte_carlo_out, paste0('/home/zhoylman/drought-year-sensitivity/data/monte_carlo_out_',spi_timescale,'_day','.RDS'))
+saveRDS(monte_carlo_summary, paste0('/home/zhoylman/drought-year-sensitivity/data/monte_carlo_summary_out',spi_timescale,'_day','.RDS'))
 
 filtered_mc = Filter(length, monte_carlo_out)
 
 final_list = list()
 
-for(i in 1:12){
+for(i in 1:length(filtered_mc)){
   final_list[[i]] = do.call('cbind', filtered_mc[[i]]) %>%
     as.data.frame()
   final_list[[i]]$row_id = 1:length(final_list[[i]][,1])
+  print(ncol(final_list[[i]]))
+  
 }
 
-do.call('left_join', c(final_list, by = 'row_id'))
-
 final_df = final_list %>% reduce(left_join, by = "row_id") %>%
-  filter(row_id < 81) %>%
+  filter(row_id <= 100) %>%
   select(-row_id)
 
 final_df[final_df == 'NaN'] = NA
@@ -254,11 +314,15 @@ summary_mc = final_df %>%
   as.data.frame()
 
 plot = ggplot()+
-  geom_ribbon(data = summary_mc, aes(x = years[1:80], ymax = `90%`, ymin = `10%`), fill = "grey70")+
-  geom_line(data = summary_mc, aes(x = years[1:80], y = `50%`), size = 2)+
+  geom_ribbon(data = summary_mc, aes(x = years[1:100], ymax = `90%`, ymin = `10%`), fill = "grey70")+
+  geom_line(data = summary_mc, aes(x = years[1:100], y = `50%`), size = 2)+
   theme_bw(base_size = 16)+
   labs(y = 'Mean Absolute Error', x = 'Years in Climatology')+
-  ggtitle('Merged Results for 12 GHCN Sites')+
+  ggtitle(paste0('Merged Results for ',length(final_list),' GHCN Sites\n',
+                 spi_timescale, ' Day SPI'))+
   theme(plot.title = element_text(hjust = 0.5))
 
-ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/all_sites.png'),)
+plot
+
+ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/all_sites_',spi_timescale,'_day', '.png'),
+       height = 6, width = 8, units = 'in')
