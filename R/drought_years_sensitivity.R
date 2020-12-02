@@ -7,7 +7,7 @@ library(doParallel)
 library(ggplot2)
 
 #define timescale of interest
-spi_timescale = 180
+spi_timescale = 365
 
 #define some functions
 #compute timeseries of SPI using the 
@@ -362,25 +362,38 @@ summarize_data = function(monte_carlo_out){
 mc_30 = readRDS('/home/zhoylman/drought-year-sensitivity/data/30_day/monte_carlo_out_30_day.RDS') %>% summarize_data()
 mc_90 = readRDS('/home/zhoylman/drought-year-sensitivity/data/90_day/monte_carlo_out_90_day.RDS') %>% summarize_data()
 mc_180 = readRDS('/home/zhoylman/drought-year-sensitivity/data/180_day/monte_carlo_out_180_day.RDS') %>% summarize_data()
+mc_365 = readRDS('/home/zhoylman/drought-year-sensitivity/data/365_day/monte_carlo_out_365_day.RDS') %>% summarize_data()
 
 plot = ggplot()+
-  geom_ribbon(data = mc_180, aes(x = 1:100, ymax = upper, ymin = lower), fill = "red", alpha = 0.3)+
+  geom_label(aes(x = rep(80,4), y = c(0.9,0.85,0.8,0.75), label = paste0('Estimated MAE @ 42 years (gridMet): ',c(round(mc_30$median[42],2),
+                                                                                                      round(mc_90$median[42],2),
+                                                                                                      round(mc_180$median[42],2),
+                                                                                                      round(mc_365$median[42],2))),
+                 color = c('blue', 'forestgreen', 'purple', 'red')),show.legend = FALSE)+
+  geom_ribbon(data = mc_365, aes(x = 1:100, ymax = upper, ymin = lower), fill = "red", alpha = 0.3)+
+  geom_ribbon(data = mc_180, aes(x = 1:100, ymax = upper, ymin = lower), fill = "purple", alpha = 0.3)+
   geom_ribbon(data = mc_90, aes(x = 1:100, ymax = upper, ymin = lower), fill = "green", alpha = 0.3)+
   geom_ribbon(data = mc_30, aes(x = 1:100, ymax = upper, ymin = lower), fill = "blue", alpha = 0.3)+
-
-  geom_line(data = mc_30, aes(x = 1:100, y = median, color = 'blue'), size = 1.5)+
+  
+  
+  geom_line(data = mc_365, aes(x = 1:100, y = median, color = 'red'), size = 1.5)+
+  geom_line(data = mc_180, aes(x = 1:100, y = median, color = 'purple'), size = 1.5)+
   geom_line(data = mc_90, aes(x = 1:100, y = median, color = 'forestgreen'), size = 1.5)+
-  geom_line(data = mc_180, aes(x = 1:100, y = median, color = 'red'), size = 1.5)+
+  geom_line(data = mc_30, aes(x = 1:100, y = median, color = 'blue'), size = 1.5)+
+
+  
+  
   theme_bw(base_size = 16)+
   labs(y = 'Mean Absolute Error', x = 'Years in Climatology')+
   ggtitle(paste0('Monte Carlo Error Results\nSPI for 53 GHCN Sites'))+
   theme(plot.title = element_text(hjust = 0.5))+
-  theme(legend.position = c(0.88, 0.83),
+  theme(legend.position="bottom",
         legend.box.background = element_rect(colour = "black"))+
-  scale_colour_manual(name = 'Timescale', 
-                      values =c('blue'='blue','forestgreen'='forestgreen', 'red' = 'red'), labels = c('30 Day', '90 Day', '180 Day'))
+  scale_colour_manual(name = 'Timescale:', 
+                      values =c('blue'='blue','forestgreen'='forestgreen', 'red' = 'red', 'purple' = 'purple'),
+                      labels = c('30 Day', '90 Day', '180 Day', '365 Day'))
 
 plot
 
 ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/all_sites_all_timescales', '.png'),
-       height = 6, width = 8, units = 'in')
+       height = 7, width = 9, units = 'in')
