@@ -72,7 +72,7 @@ spi_params = function(precip_data, time_scale){
             #fit gamma
             fit.parglo = pargam(lmoments_x)
             #compute probabilistic cdf
-            params = fit.parglo$para
+            params = fit.parglo$para %>% as.data.frame() %>% t() %>% as.data.frame()
           },
           error = function(e){
             params = rep(NA, 2)
@@ -80,9 +80,11 @@ spi_params = function(precip_data, time_scale){
         )
       }
       else {
-        params = rep(NA, 2)
+        params = rep(NA, 4)
       }
     }
+    params$mean = mean(data_time_filter$sum)/10
+    params$cv = (sd(data_time_filter$sum)/10)/(mean(data_time_filter$sum)/10)
     return(params)
   }
 }
@@ -130,8 +132,9 @@ for(s in 1:length(valid_stations$id)){
     mutate(last = first + 40) %>%
     filter(last <= max(annual_nobs$year)) 
   
-  params_out = data.frame(matrix(ncol = 2, nrow = length(moving_window_index$first)))
-  colnames(params_out) = c('Alpha (Shape)', 'Beta (Rate)')
+  params_out = data.frame(matrix(ncol = 4, nrow = length(moving_window_index$first)))
+  colnames(params_out) = c('Alpha (Shape)', 'Beta (Rate)', 
+                           'Mean Precipitation (mm; June - Aug)', 'SD Precipitation (mm; June - Aug)')
   for(i in 1:length(moving_window_index$first)){
     params_out[i,] = spi_params(data_filtered %>%
                                   mutate(year = year(time)) %>%
@@ -153,7 +156,8 @@ for(s in 1:length(valid_stations$id)){
     theme(plot.title = element_text(hjust = 0.5))
   
   ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/parameters/site_',
-                             valid_stations$id[s],'_',time_scale,'_day','.png'))
+                             valid_stations$id[s],'_',time_scale,'_day','.png'),
+         width = 11, height = 8, units = 'in', dpi = 300)
   print(s)
 }
 
