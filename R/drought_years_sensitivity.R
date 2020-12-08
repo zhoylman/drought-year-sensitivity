@@ -374,8 +374,8 @@ plot = ggplot()+
   geom_ribbon(data = mc_180, aes(x = 1:100, ymax = upper, ymin = lower), fill = "purple", alpha = 0.3)+
   geom_ribbon(data = mc_90, aes(x = 1:100, ymax = upper, ymin = lower), fill = "green", alpha = 0.3)+
   geom_ribbon(data = mc_30, aes(x = 1:100, ymax = upper, ymin = lower), fill = "blue", alpha = 0.3)+
-  
-  
+
+
   geom_line(data = mc_365, aes(x = 1:100, y = median, color = 'red'), size = 1.5)+
   geom_line(data = mc_180, aes(x = 1:100, y = median, color = 'purple'), size = 1.5)+
   geom_line(data = mc_90, aes(x = 1:100, y = median, color = 'forestgreen'), size = 1.5)+
@@ -395,5 +395,5 @@ plot = ggplot()+
 
 plot
 
-ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/all_sites_all_timescales', '.png'),
+ggsave(plot, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/all_sites_30_90_180', '.png'),
        height = 7, width = 9, units = 'in')

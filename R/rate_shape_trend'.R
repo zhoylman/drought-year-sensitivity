@@ -134,7 +134,7 @@ for(s in 1:length(valid_stations$id)){
   
   params_out = data.frame(matrix(ncol = 4, nrow = length(moving_window_index$first)))
   colnames(params_out) = c('Alpha (Shape)', 'Beta (Rate)', 
-                           'Mean Precipitation (mm; June - Aug)', 'SD Precipitation (mm; June - Aug)')
+                           'Mean Precipitation (mm; June - Aug)', 'CV Precipitation (mm; June - Aug)')
   for(i in 1:length(moving_window_index$first)){
     params_out[i,] = spi_params(data_filtered %>%
                                   mutate(year = year(time)) %>%
