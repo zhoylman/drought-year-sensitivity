@@ -7,7 +7,7 @@ library(doParallel)
 library(ggplot2)
 
 #define timescale of interest
-spi_timescale = 365
+spi_timescale = 90
 
 #define some functions
 #compute timeseries of SPI using the 
