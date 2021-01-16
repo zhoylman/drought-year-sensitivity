@@ -5,9 +5,12 @@ library(magrittr)
 library(lmomco)
 library(doParallel)
 library(ggplot2)
+library(foreach)
+library(doParallel)
+library(sf)
 
 time_scale = 60
-months_of_interest = c(5,6,7)
+months_of_interest = c(5,6,7,8)
 
 spi_params = function(precip_data, time_scale){
   #define some date based variables
@@ -19,8 +22,9 @@ spi_params = function(precip_data, time_scale){
   
   #Start SPI calculation
   for(t in 1:length(time_scale)){
-    for(i in rev((length(precip_data$time)-364):length(precip_data$time))[2]){
-      #calcualte index vectors of interest based on time
+    #for(i in rev((length(precip_data$time)-364):length(precip_data$time))[2]){
+    for(i in which(precip_data$time == as.Date(paste0(max(precip_data$year),'-08-01')))){ #parameters computed for Aug 1
+      #calcualte index vectors of interest based on time and timescale
       first_date_breaks = which(precip_data$day == precip_data$day[i])
       second_date_breaks = first_date_breaks-(time_scale[t]-1)
       
@@ -51,7 +55,7 @@ spi_params = function(precip_data, time_scale){
         group_by(group_by_vec)%>%
         dplyr::summarise(sum = sum(data/10, na.rm = T))
       
-      if(length(data_time_filter$group_by_vec) >= 30){
+      if(length(data_time_filter$group_by_vec) >= 29){
         #remove zeros because they cause the gamma dist to blow up to Inf
         data_time_filter$sum[data_time_filter$sum == 0] = 0.01
         
@@ -82,59 +86,17 @@ spi_params = function(precip_data, time_scale){
       else {
         params = rep(NA, 4)
       }
-    }
+    }  
     params$mean = mean(data_time_filter$sum)
     params$cv = (sd(data_time_filter$sum))/(mean(data_time_filter$sum))
     return(params)
   }
-}
+} 
 
-stations = ghcnd_stations()
+valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer.RDS')
 
-#initial filter for stations with potentially enough data
-valid_stations = stations %>%
-  filter(element == 'PRCP',
-         first_year <= 1920,
-         last_year == 2020,
-         latitude > 22 & latitude < 50,
-         longitude < -50 & longitude > -140)
-
-# cl = makeCluster(30)
-# registerDoParallel(cl)
-# 
-# #in parallel, compute the number of valid years in sequence
-# nobs_list = foreach(s = 1:length(filtered_stations$id))%dopar%{
-#   library(rnoaa)
-#   library(tidyverse)
-#   library(lubridate)
-#   #import raw data
-#   data_raw = ghcnd_search(
-#     filtered_stations$id[s],
-#     date_min = NULL,
-#     date_max = NULL,
-#     var = "PRCP"
-#   ) 
-#   
-#   #compute obs per year
-#   annual_nobs = data_raw %$%
-#     prcp %>%
-#     mutate(year = year(date)) %>%
-#     drop_na() %>%
-#     group_by(year) %>%
-#     summarize(n = length(prcp)) %>%
-#     filter(n >= 365) 
-#   
-#   #define out df
-#   out = data.frame(id = filtered_stations$id[s], nobs = length(annual_nobs$year))
-#   
-#   #export in foreach
-#   out
-# }
-
-derivative_df = data.frame(matrix(nrow = length(valid_stations$id), ncol = 2))
-colnames(derivative_df) = c('dAlpha', 'dBeta')
-
-for(s in 1:length(valid_stations$id)){
+#for(s in 1:length(valid_stations$id)){
+for(s in 1:50){
   data_raw = ghcnd_search(
     valid_stations$id[s],
     date_min = NULL,
@@ -142,38 +104,33 @@ for(s in 1:length(valid_stations$id)){
     var = "PRCP"
   ) 
   
-  annual_nobs = data_raw %$%
-    prcp %>%
-    mutate(year = year(date)) %>%
-    drop_na() %>%
-    group_by(year) %>%
-    summarize(n = length(prcp)) %>%
-    filter(n >= 365) 
-  
-  print(paste0('Years = ', length(annual_nobs$year)))
-  
   data_filtered = data_raw %$%
+    #its a list, select precip
     prcp %>%
-    mutate(year = year(date)) %>%
-    filter(year %in% annual_nobs$year) %>% # filter for full years
-    select(date, prcp)%>%
+    mutate(year = year(date),
+           month = month(date)) %>%
+    dplyr::select(date, prcp, year, month)%>%
     rename(time = date, data = prcp)%>%
-    mutate(month = month(time)) %>%
     filter(month %in% months_of_interest)
   
-  moving_window_index = data.frame(first = annual_nobs$year[1]:annual_nobs$year[length(annual_nobs$year)]) %>%
-    mutate(last = first + 40) %>%
-    filter(last <= max(annual_nobs$year)) 
+  moving_window_index = data.frame(first = unique(data_filtered$year)[1]:max(unique(data_filtered$year))) %>%
+    mutate(last = first + 39) %>%
+    filter(last <= max(unique(data_filtered$year))) 
   
   params_out = data.frame(matrix(ncol = 4, nrow = length(moving_window_index$first)))
+  params_out$year = moving_window_index$last
   colnames(params_out) = c('Alpha (Shape)', 'Beta (Rate)', 
-                           'Mean Precipitation (mm; 60 day Aug. 1)', 'CV Precipitation (mm; 60 day Aug. 1)')
+                           'Mean Precipitation (mm; 60 day Aug. 1)', 'CV Precipitation (mm; 60 day Aug. 1)', 'year')
+  
   for(i in 1:length(moving_window_index$first)){
-    params_out[i,] = spi_params(data_filtered %>%
-                                  mutate(year = year(time)) %>%
-                                  filter(year >= moving_window_index$first[i] &
-                                           year <= moving_window_index$last[i]), time_scale)
+    precip_data = data_filtered %>%
+      filter(year >= moving_window_index$first[i],
+             year <= moving_window_index$last[i])
+    
+    if(length(unique(precip_data$year)) == 40){
+      params_out[i,1:4] = spi_params(precip_data, time_scale)
     }
+  }
   
   params_all = spi_params(data_filtered, time_scale)
   colnames(params_all) = c('Alpha (Shape)', 'Beta (Rate)', 
@@ -183,10 +140,10 @@ for(s in 1:length(valid_stations$id)){
   params_all_vec = params_all[1,1:2] %>% as.numeric() %>% vec2par(., type="gam")
   
   params_out_tibble = params_out %>%
-    mutate(time = moving_window_index$last) %>%
-    gather('key', 'value', -time)
+    drop_na() %>%
+    gather('key', 'value', -year)
   
-  plot_param = ggplot(params_out_tibble, aes(x = time, y = value))+
+  plot_param = ggplot(params_out_tibble, aes(x = year, y = value))+
     geom_smooth(method = 'loess')+
     geom_point()+
     geom_hline(data = params_all_wide, aes(yintercept = value))+
@@ -203,13 +160,13 @@ for(s in 1:length(valid_stations$id)){
   
   synthetic_precip = seq(1, params_all$`Mean Precipitation (mm; 60 day Aug. 1)`*3, length.out = 1000)
   
-  out = data.frame(matrix(ncol = length(params_out_wide$time), nrow = length(synthetic_precip)))
+  out = data.frame(matrix(ncol = length(params_out_wide$year), nrow = length(synthetic_precip)))
   
-  for(i in 1:length(params_out_wide$time)){
+  for(i in 1:length(params_out_wide$year)){
     temp_params = params_out_wide[i,2:3] %>% as.numeric() %>% vec2par(., type="gam")
     out[,i] = pdfgam(synthetic_precip, temp_params['para'])
   }
-  colnames(out) = params_out_wide$time
+  colnames(out) = params_out_wide$year
   out$precip = synthetic_precip
   
   out_tibble = out %>%
@@ -229,8 +186,6 @@ for(s in 1:length(valid_stations$id)){
           plot.title = element_text(hjust = 0.5))+
     xlim(0,params_all$`Mean Precipitation (mm; 60 day Aug. 1)`*3)
     
-  plot_dist
-
   plot_grid = ggpubr::ggarrange(plot_param, plot_dist)
   
   final = ggpubr::annotate_figure(plot_grid,
@@ -243,29 +198,5 @@ for(s in 1:length(valid_stations$id)){
                              valid_stations$id[s],'_',time_scale,'_day','.png'),
          width = 15, height = 8, units = 'in', dpi = 300)
   
-  #derivitive
-  
-  derivative_df$dAlpha[s] = diff(params_out_wide$`Alpha (Shape)`) %>%
-    abs() %>%
-    mean()
-  
-  derivative_df$dBeta[s] = diff(params_out_wide$`Beta (Rate)`) %>%
-    abs() %>%
-    mean()
-  
   print(s)
 }
-
-derivative_tbl = derivative_df %>%
-  pivot_longer(everything())
-
-summary = ggplot()+
-  geom_density(data = derivative_tbl, aes(value), fill = 'purple')+
-  facet_wrap(~name, scales = 'free')+
-  theme_bw(base_size = 16)+
-  theme(strip.background = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA))+
-  labs(x = 'Parameter Value', y = 'Density')
-
-ggsave(summary, file = '/home/zhoylman/drought-year-sensitivity/figs/parameter_change.png')
-  
