@@ -1,5 +1,5 @@
 #################################################
-############## Drought Metric Bias ##############
+########### Drought Metric Bias (SPI) ###########
 #################################################
 
 library(rnoaa)
@@ -15,7 +15,7 @@ library(sf)
 options(dplyr.summarise.inform = FALSE)
 
 #define base parameters
-time_scale = 30
+time_scale = 90
 months_of_interest = c(4,5,6,7,8)
 contemporary_climatology_length = 30
 
@@ -39,7 +39,7 @@ spi_vals = function(precip_data, time_scale){
   
   #Start SPI calculation
   for(t in 1:length(time_scale)){ 
-    for(i in rev((length(precip_data$time)-91):length(precip_data$time))){ # compute SPI for 90 days (June 1 - August 31 is target range)
+    for(i in rev((length(precip_data$time)-62):length(precip_data$time))){ # compute SPI for 62 days (July 1 - August 31 is target range)
       #calcualte index vectors of interest based on time and timescale
       first_date_breaks = which(precip_data$mday == precip_data$mday[i] & precip_data$month == precip_data$month[i])
       second_date_breaks = first_date_breaks-(time_scale[t]-1)
