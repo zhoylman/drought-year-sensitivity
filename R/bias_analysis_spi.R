@@ -15,7 +15,7 @@ library(sf)
 options(dplyr.summarise.inform = FALSE)
 
 #define base parameters
-time_scale = 90
+time_scale = 30
 months_of_interest = c(4,5,6,7,8)
 contemporary_climatology_length = 30
 
@@ -216,8 +216,21 @@ drought_class_bias = function(x){
   return(export)
 }
 
+drought_bias_all = function(x){
+  #summarise
+  temp = x %>%
+    mutate(month = month(time))%>%
+    filter(month %in% c(7,8),
+           spi_historic <= -0.5)%>%
+    tidyr::drop_na() %>%
+    as_tibble()%>%
+    summarise(bias = median(diff, na.rm = T)) 
+
+  return(temp$bias)
+}
+
 # compute average bias for all data together (wet and dry, all D classes together)
-bias = lapply(spi_comparison, FUN = function(x){median(x$diff)}) %>%
+bias = lapply(spi_comparison, drought_bias_all) %>%
   unlist()
 
 #drought classes broken out
@@ -235,7 +248,7 @@ contemp_clim = lapply(spi_comparison, FUN = function(x){median(x$n_contemporary)
 
 #merge into single dataframe that summarizes all results  
 valid_stations_joined = valid_stations %>%
-  mutate(bias = bias,
+  mutate(`Average Bias` = bias,
          min_clim = min_clim,
          contemp_clim = contemp_clim,
          D0 = drought_class$D0,
@@ -257,7 +270,7 @@ valid_stations_filtered = valid_stations_joined %>%
 #define plotting
 col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
 
-classes = c('D0', 'D1', 'D2', 'D3', 'D4')
+classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4')
 
 for(c in 1:length(classes)){
   

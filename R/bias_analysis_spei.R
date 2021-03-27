@@ -19,7 +19,7 @@ time_scale = 90
 months_of_interest = c(4,5,6,7,8)
 contemporary_climatology_length = 30
 
-#define nice special
+#define nice special  
 `%notin%` = Negate(`%in%`)
 
 #import PET algorithm
@@ -112,11 +112,13 @@ cl = makeCluster(detectCores()-1)
 registerDoParallel(cl)
 
 #time parallel run
-tictoc::tic()
+tictoc::tic() 
 spei_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                                                         'lmomco', 'sf')) %dopar% {
   tryCatch(
     {
+      #import function so that all the cores have the script. 
+      source('/home/zhoylman/drought-year-sensitivity/R/hargreaves_samani_eto.R')
       #pull in raw GHCN data
       data_raw = ghcnd_search(
         valid_stations$id[s],
