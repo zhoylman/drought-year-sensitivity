@@ -1,5 +1,5 @@
 #################################################
-########### Drought Metric Bias (SPI) ###########
+########### Drought Metric Bias (SPEI) ###########
 #################################################
 
 library(rnoaa)
@@ -22,24 +22,27 @@ contemporary_climatology_length = 30
 #define nice special
 `%notin%` = Negate(`%in%`)
 
+#import PET algorithm
+source('/home/zhoylman/drought-year-sensitivity/R/hargreaves_samani_eto.R')
+
 #import states to filter and for plotting
 states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
   filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
   st_geometry()
 
-#define the SPI function to compute SPI based on defined params
-spi_vals = function(precip_data, time_scale){ 
+#define the SPEI function to compute SPEI based on defined params
+spei_vals = function(diff_data, time_scale){ 
   #define some date based variables
-  precip_data$day = yday(precip_data$time)
-  precip_data$mday = day(precip_data$time)
-  precip_data$year = year(precip_data$time)
-  precip_data$month = month(precip_data$time)
+  diff_data$day = yday(diff_data$time)
+  diff_data$mday = day(diff_data$time)
+  diff_data$year = year(diff_data$time)
+  diff_data$month = month(diff_data$time)
   
-  #Start SPI calculation
+  #Start SPEI calculation
   for(t in 1:length(time_scale)){ 
-    for(i in rev((length(precip_data$time)-62):length(precip_data$time))){ # compute SPI for 62 days (July 1 - August 31 is target range)
+    for(i in rev((length(diff_data$time)-62):length(diff_data$time))){ # compute SPEI for 62 days (July 1 - August 31 is target range)
       #calcualte index vectors of interest based on time and timescale
-      first_date_breaks = which(precip_data$mday == precip_data$mday[i] & precip_data$month == precip_data$month[i])
+      first_date_breaks = which(diff_data$mday == diff_data$mday[i] & diff_data$month == diff_data$month[i])
       second_date_breaks = first_date_breaks-(time_scale[t]-1)
       
       #if there are negative indexes remove last year (incomplete data range)
@@ -63,37 +66,32 @@ spi_vals = function(precip_data, time_scale){
       }
       
       #slice data for appropriate periods
-      data_time_filter = precip_data %>%
+      data_time_filter = diff_data %>%
         slice(slice_vec) %>%
         tibble::add_column(group_by_vec = group_by_vec)%>%
         group_by(group_by_vec)%>%
-        dplyr::summarise(sum = sum(data/10, na.rm = T))
-      
-      #remove zeros because they cause the gamma dist to blow up to Inf
-      data_time_filter$sum[data_time_filter$sum == 0] = 0.01
+        dplyr::summarise(sum = sum(diff, na.rm = T))
       
       #compute date time for day/year of interest
-      date_time = precip_data$time[first_date_breaks] %>% as.Date()
+      date_time = diff_data$time[first_date_breaks] %>% as.Date()
       
       #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
       pwm = pwm.ub(data_time_filter$sum)
       #Probability-Weighted Moments to L-moments
       lmoments_x = pwm2lmom(pwm)
-      #fit gamma
-      fit.pargam = pargam(lmoments_x)
-      #extract the gamma distrobution parameters
-      params = fit.pargam$para %>% as.data.frame() %>% t() %>% as.data.frame()
+      #fit generalized logistic
+      fit.parglo = parglo(lmoments_x)
       #compute probabilistic cdf 
-      fit.cdf = cdfgam(data_time_filter$sum, fit.pargam)
+      fit.cdf = cdfglo(data_time_filter$sum, fit.parglo)
       
-      if(i == length(precip_data$time)){
+      if(i == length(diff_data$time)){
         output.df = data.frame(time = date_time,
-                               spi = qnorm(fit.cdf, mean = 0, sd = 1),
+                               spei = qnorm(fit.cdf, mean = 0, sd = 1),
                                n = length(data_time_filter$sum))
       }
       else{
         output.df = rbind(output.df, data.frame(time = date_time,
-                                                spi = qnorm(fit.cdf, mean = 0, sd = 1),
+                                                spei = qnorm(fit.cdf, mean = 0, sd = 1),
                                                 n = length(data_time_filter$sum)))
       }
     } 
@@ -103,10 +101,10 @@ spi_vals = function(precip_data, time_scale){
 }
 
 #read in dataframe of valid stations
-valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer.RDS')
+valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_precip_temp.RDS')
 
 #generate the list to contain results
-spi_comparison = list()
+spei_comparison = list()
 
 #rev up a cluster for parallel computing
 cl = makeCluster(detectCores()-1)
@@ -115,7 +113,7 @@ registerDoParallel(cl)
 
 #time parallel run
 tictoc::tic()
-spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
+spei_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                                                         'lmomco', 'sf')) %dopar% {
   tryCatch(
     {
@@ -124,55 +122,68 @@ spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa',
         valid_stations$id[s],
         date_min = NULL,
         date_max = NULL,
-        var = "PRCP"
-      ) 
+        var = c('PRCP','TMAX','TMIN')
+      )
       
-      complete_years = data_raw %$%
-        #its a list, select precip
-        prcp %>%
+      joined = left_join(data_raw %$% prcp, data_raw %$% tmax, by = c('date', 'id')) %>%
+        left_join(data_raw %$% tmin, by = c('date', 'id')) %>%
+        dplyr::select(id, date, prcp, tmax, tmin)
+      
+      #compute summer obs per year
+      complete_years = joined %>%
         mutate(year = year(date),
                month = month(date)) %>%
-        dplyr::select(date, prcp, year, month)%>%
-        rename(time = date, data = prcp)%>%
         filter(month %in% months_of_interest) %>%
-        group_by(year) %>%
-        summarise(n = length(data)) %>%
-        filter(n == 153)
+        drop_na() %>%
+        dplyr::select(-month) %>%
+        pivot_longer(cols = -c(id,date,year)) %>%
+        group_by(year, name) %>%
+        summarize(n = length(value)) %>%
+        ungroup() %>%
+        group_by(year)%>%
+        summarize(n_combined = sum(n)) %>%
+        #filter for complete data (3 vars for 153 days (5 months - Daily))
+        filter(n_combined == 153*3)
       
       #filter it for variable, time etc
-      data_filtered = data_raw %$%
-        #its a list, select precip
-        prcp %>%
+      data_filtered = joined %>%
         mutate(year = year(date),
                month = month(date)) %>%
-        dplyr::select(date, prcp, year, month)%>%
-        rename(time = date, data = prcp)%>%
+        dplyr::select(date, prcp, tmax, tmin, year, month)%>%
         filter(month %in% months_of_interest,
-               year %in% complete_years$year)
+               year %in% complete_years$year) %>%
+        mutate(pet = hs_eto(Tmax = tmax/10, 
+                            Tmin = tmin/10, 
+                            Julian_day = yday(date), 
+                            lat = st_coordinates(valid_stations[s,])[2]),
+               diff = pet - prcp/10,
+               year = year(date)) %>%
+        select(date,year,diff) %>%
+        rename(time = date)
       
       #filter for the most current 30 years
       data_contemporary = data_filtered %>%
         filter(year > max(.$year) - contemporary_climatology_length)
       
-      #compute SPI using all data
-      spi_historic = spi_vals(data_filtered, time_scale) %>%
-        rename(spi_historic = spi, n_historic = n)
+      #compute SPEI using all data
+      spei_historic = spei_vals(data_filtered, time_scale) %>%
+        rename(spei_historic = spei, n_historic = n)
       
-      #compute SPI using only the current 30 years
-      spi_contemporary = spi_vals(data_contemporary, time_scale) %>%
-        rename(spi_contemporary = spi, n_contemporary = n)
+      #compute SPEI using only the current 30 years
+      spei_contemporary = spei_vals(data_contemporary, time_scale) %>%
+        rename(spei_contemporary = spei, n_contemporary = n)
       
       #join datasets for the final comparison dataframe
-      spi_merged = spi_historic %>%
-        filter(time %in% spi_contemporary$time) %>%
-        left_join(., spi_contemporary, by = 'time') %>%
-        mutate(diff = spi_historic - spi_contemporary)
+      spei_merged = spei_historic %>%
+        filter(time %in% spei_contemporary$time) %>%
+        left_join(., spei_contemporary, by = 'time') %>%
+        mutate(diff = spei_historic - spei_contemporary)
     },
     error = function(e){
-      spi_merged = NA
+      spei_merged = NA
     })  
   
-  spi_merged                                             
+  spei_merged                                             
 }
 tictoc::toc()
 
@@ -183,7 +194,7 @@ stopCluster(cl)
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
 
 #define function to compute bias for different drought classes
-#determined by the longest period of record SPI values and the
+#determined by the longest period of record SPEI values and the
 #UNL definitions of Dx classes (above)
 # this analysis is for Daily Values between July 1 - Aug 31
 drought_class_bias = function(x){
@@ -196,7 +207,7 @@ drought_class_bias = function(x){
   temp = x %>%
     mutate(month = month(time))%>%
     filter(month %in% c(7,8))%>%
-    mutate(drought = .bincode(spi_historic, drought_breaks)) %>%
+    mutate(drought = .bincode(spei_historic, drought_breaks)) %>%
     tidyr::drop_na() %>%
     mutate(drought = drought %>% as.factor(), 
            drought = plyr::revalue(drought, c(`1` = 'D4',
@@ -217,20 +228,20 @@ drought_class_bias = function(x){
 }
 
 # compute average bias for all data together (wet and dry, all D classes together)
-bias = lapply(spi_comparison, FUN = function(x){median(x$diff)}) %>%
+bias = lapply(spei_comparison, FUN = function(x){median(x$diff)}) %>%
   unlist()
 
 #drought classes broken out
-drought_class = lapply(spi_comparison, drought_class_bias) %>%
+drought_class = lapply(spei_comparison, drought_class_bias) %>%
   data.table::rbindlist(.) %>%
   as_tibble()
 
 #compute the min number of years for the full record
-min_clim = lapply(spi_comparison, FUN = function(x){median(x$n_historic)}) %>%
+min_clim = lapply(spei_comparison, FUN = function(x){median(x$n_historic)}) %>%
   unlist()
 
 #compute the min number of years for the 30 year record
-contemp_clim = lapply(spi_comparison, FUN = function(x){median(x$n_contemporary)}) %>%
+contemp_clim = lapply(spei_comparison, FUN = function(x){median(x$n_contemporary)}) %>%
   unlist()
 
 #merge into single dataframe that summarizes all results  
@@ -268,7 +279,7 @@ for(c in 1:length(classes)){
                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
                           oob = scales::squish)+
     theme_bw()+
-    ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale, ' Day SPI (July 1 - August 31)'))+
+    ggtitle(paste0('Average Difference in Daily Summer SPEI Values (', classes[c], ')\n', time_scale, ' Day SPEI (July 1 - August 31)'))+
     theme(legend.position = 'bottom',
           legend.key.width=unit(2,"cm"),
           plot.title = element_text(hjust = 0.5))
@@ -319,7 +330,7 @@ for(c in 1:length(classes)){
   
   final = cowplot::plot_grid(pts_plot, krig_plot, ncol = 1)
   
-  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/spi_bias_maps_',classes[c],'_',time_scale,'day_timescale_July1-Aug31.png'), width = 7, height = 10, units = 'in')
+  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/spei_bias_maps_',classes[c],'_',time_scale,'day_timescale_July1-Aug31.png'), width = 7, height = 10, units = 'in')
   #plot
 }
 
