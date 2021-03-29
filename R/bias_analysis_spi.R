@@ -15,8 +15,8 @@ library(sf)
 options(dplyr.summarise.inform = FALSE)
 
 #define base parameters
-time_scale = 30
-months_of_interest = c(4,5,6,7,8)
+time_scale = 60
+months_of_interest = c(3,4,5,6,7,8)
 contemporary_climatology_length = 30
 
 #define nice special
@@ -103,7 +103,7 @@ spi_vals = function(precip_data, time_scale){
 }
 
 #read in dataframe of valid stations
-valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer.RDS')
+valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_March-August.RDS')
 
 #generate the list to contain results
 spi_comparison = list()
@@ -137,7 +137,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa',
         filter(month %in% months_of_interest) %>%
         group_by(year) %>%
         summarise(n = length(data)) %>%
-        filter(n == 153)
+        filter(n == 184) # March 1 - August 31
       
       #filter it for variable, time etc
       data_filtered = data_raw %$%
@@ -150,9 +150,15 @@ spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa',
         filter(month %in% months_of_interest,
                year %in% complete_years$year)
       
+      #this is for if you dont care about the 1991-2020 constraint
+      complete_year_min_contemporary = complete_years$year[(length(complete_years$year) - (contemporary_climatology_length-1))]
+      
       #filter for the most current 30 years
       data_contemporary = data_filtered %>%
         filter(year > max(.$year) - contemporary_climatology_length)
+      
+      # data_contemporary = data_filtered %>%
+      #   filter(year >= complete_year_min_contemporary)
       
       #compute SPI using all data
       spi_historic = spi_vals(data_filtered, time_scale) %>%
@@ -166,7 +172,8 @@ spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa',
       spi_merged = spi_historic %>%
         filter(time %in% spi_contemporary$time) %>%
         left_join(., spi_contemporary, by = 'time') %>%
-        mutate(diff = spi_historic - spi_contemporary)
+        mutate(diff = spi_historic - spi_contemporary,
+               complete_year_min_contemporary = complete_year_min_contemporary)
     },
     error = function(e){
       spi_merged = NA
@@ -178,6 +185,9 @@ tictoc::toc()
 
 #stop cluster
 stopCluster(cl)
+
+#save out big list
+saveRDS(spi_comparison, paste0('/home/zhoylman/drought-year-sensitivity/data', '/spi_comparision_', time_scale, '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
@@ -195,7 +205,7 @@ drought_class_bias = function(x){
   #summarise
   temp = x %>%
     mutate(month = month(time))%>%
-    filter(month %in% c(7,8))%>%
+    filter(month %in% c(6,7,8))%>%
     mutate(drought = .bincode(spi_historic, drought_breaks)) %>%
     tidyr::drop_na() %>%
     mutate(drought = drought %>% as.factor(), 
@@ -246,10 +256,14 @@ min_clim = lapply(spi_comparison, FUN = function(x){median(x$n_historic)}) %>%
 contemp_clim = lapply(spi_comparison, FUN = function(x){median(x$n_contemporary)}) %>%
   unlist()
 
+contemp_min_year = lapply(spi_comparison, FUN = function(x){median(x$complete_year_min_contemporary)}) %>%
+  unlist()
+
 #merge into single dataframe that summarizes all results  
 valid_stations_joined = valid_stations %>%
   mutate(`Average Bias` = bias,
          min_clim = min_clim,
+         contemp_min_year = contemp_min_year,
          contemp_clim = contemp_clim,
          D0 = drought_class$D0,
          D1 = drought_class$D1,
@@ -261,7 +275,8 @@ valid_stations_joined = valid_stations %>%
 #and for locations with 30 years in the "contempary record"
 valid_stations_filtered = valid_stations_joined %>%
   filter(min_clim >= 70,
-         contemp_clim == 30)
+         contemp_clim == 30,
+         contemp_min_year > 1985)
 
 #################################################
 ################ Plot the Results ###############
@@ -281,18 +296,14 @@ for(c in 1:length(classes)){
                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
                           oob = scales::squish)+
     theme_bw()+
-    ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale, ' Day SPI (July 1 - August 31)'))+
+    ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale, ' Day SPI (June 1 - August 31)'))+
     theme(legend.position = 'bottom',
           legend.key.width=unit(2,"cm"),
           plot.title = element_text(hjust = 0.5))
   
   pts_plot
   
-  # Krige
-  library(sf)
-  library(gstat)
-  library(raster)
-  library(stars)
+  # Krige 
   
   template = raster::raster(resolution=c(1/3,1/3),
                             crs = sp::CRS("+init=epsg:4326")) %>%
@@ -307,14 +318,9 @@ for(c in 1:length(classes)){
     drop_na(classes[c]) %>%
     st_as_sf
   
-  
-  
-  vgm1 <- gstat::variogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, data = temp_stations)
-  fit1 <- gstat::fit.variogram(vgm1, model = gstat::vgm("Gau")) # fit model
-  krig <- gstat::krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1]~1, 
-                       temp_stations, template, model=fit1) %>%
+  vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
+  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
     st_intersection(states)
-  
   krig_pts = st_coordinates(krig) %>%
     as_tibble() %>%
     mutate(val = krig$var1.pred)
@@ -332,7 +338,30 @@ for(c in 1:length(classes)){
   
   final = cowplot::plot_grid(pts_plot, krig_plot, ncol = 1)
   
-  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/spi_bias_maps_',classes[c],'_',time_scale,'day_timescale_July1-Aug31.png'), width = 7, height = 10, units = 'in')
+  # vgm1 = variogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, data = temp_stations)
+  # fit1 = fit.variogram(vgm1, model = gstat::vgm("Gau")) # fit model
+  # krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1]~1, 
+  #              temp_stations, template, model=fit1) %>%
+  #   st_intersection(states)
+  # 
+  # krig_pts = st_coordinates(krig) %>%
+  #   as_tibble() %>%
+  #   mutate(val = krig$var1.pred)
+  # 
+  # krig_plot = ggplot(krig)+
+  #   geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
+  #   geom_sf(data = states, fill = 'transparent', color = 'black')+
+  #   labs(x = "", y = "")+
+  #   scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+  #                        labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+  #                        oob = scales::squish)+
+  #   theme_bw()+
+  #   theme(legend.position = 'bottom',
+  #         legend.key.width=unit(2,"cm"))
+  # 
+  # final = cowplot::plot_grid(pts_plot, krig_plot, ncol = 1)
+  
+  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/spi_bias_maps_',classes[c],'_',time_scale,'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
   #plot
 }
 

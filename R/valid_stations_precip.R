@@ -9,9 +9,9 @@ library(foreach)
 library(doParallel)
 library(sf)
 
-#months of interest (summer) Allows for 30, 60, 90 day calculations for July 1 - Aug 31
-# for example, for July 1 - 90 days = April 1
-months_of_interest = c(4,5,6,7,8)
+#months of interest (summer) Allows for 30, 60, 90 day calculations for June 1 - Aug 31
+# for example, for June 1 - 90 days = March 1
+months_of_interest = c(3,4,5,6,7,8)
 
 #define not in function
 `%notin%` = Negate(`%in%`)
@@ -63,7 +63,8 @@ nobs_list = foreach(s = 1:length(filtered_stations$id))%dopar%{
     group_by(year) %>%
     summarize(n = length(prcp)) %>%
     #filter for complete data
-    filter(n == 153) # April 1 - Aug 31
+    #filter(n == 153) # April 1 - Aug 31
+    filter(n == 184)# March 1 - Aug 31
   
   #define out df
   out = data.frame(id = filtered_stations$id[s], nobs = length(seasonal_obs$year))
@@ -88,4 +89,4 @@ plot(final_valid$geometry, xlab = '', ylab = '', main = paste0('70+ Years Summer
 plot(states, add = T)
 
 #save it out for later use
-saveRDS(final_valid, file = '/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer.RDS')
+saveRDS(final_valid, file = '/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_March-August.RDS')

@@ -8,6 +8,9 @@ library(ggplot2)
 library(foreach)
 library(doParallel)
 library(sf)
+library(gstat)
+library(raster)
+library(stars)
 
 #months of interest (summer) Allows for 30, 60, 90 day calculations for July 1 - Aug 31
 # for example, for July 1 - 90 days = April 1

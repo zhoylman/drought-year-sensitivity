@@ -1,6 +1,6 @@
 #################################################
 ########### Drought Metric Bias (SPEI) ###########
-#################################################
+##########################  #######################
 
 library(rnoaa)
 library(tidyverse)
@@ -12,10 +12,14 @@ library(ggplot2)
 library(foreach)
 library(doParallel)
 library(sf)
+library(gstat)
+library(raster)
+library(stars)
+library(automap)
 options(dplyr.summarise.inform = FALSE)
 
 #define base parameters
-time_scale = 90
+time_scale = 60
 months_of_interest = c(4,5,6,7,8)
 contemporary_climatology_length = 30
 
@@ -160,12 +164,17 @@ spei_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa'
                             lat = st_coordinates(valid_stations[s,])[2]),
                diff = pet - prcp/10,
                year = year(date)) %>%
-        select(date,year,diff) %>%
+        dplyr::select(date,year,diff) %>%
         rename(time = date)
       
       #filter for the most current 30 years
+      # data_contemporary = data_filtered %>%
+      #   filter(year > max(.$year) - contemporary_climatology_length)
+      
+      complete_year_min_contemporary = complete_years$year[(length(complete_years$year) - (contemporary_climatology_length-1))]
+      
       data_contemporary = data_filtered %>%
-        filter(year > max(.$year) - contemporary_climatology_length)
+        filter(year >= complete_year_min_contemporary)
       
       #compute SPEI using all data
       spei_historic = spei_vals(data_filtered, time_scale) %>%
@@ -179,7 +188,8 @@ spei_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa'
       spei_merged = spei_historic %>%
         filter(time %in% spei_contemporary$time) %>%
         left_join(., spei_contemporary, by = 'time') %>%
-        mutate(diff = spei_historic - spei_contemporary)
+        mutate(diff = spei_historic - spei_contemporary,
+               complete_year_min_contemporary = complete_year_min_contemporary)
     },
     error = function(e){
       spei_merged = NA
@@ -229,8 +239,21 @@ drought_class_bias = function(x){
   return(export)
 }
 
+drought_bias_all = function(x){
+  #summarise
+  temp = x %>%
+    mutate(month = month(time))%>%
+    filter(month %in% c(7,8),
+           spei_historic <= -0.5)%>%
+    tidyr::drop_na() %>%
+    as_tibble()%>%
+    summarise(bias = median(diff, na.rm = T)) 
+  
+  return(temp$bias)
+}
+
 # compute average bias for all data together (wet and dry, all D classes together)
-bias = lapply(spei_comparison, FUN = function(x){median(x$diff)}) %>%
+bias = lapply(spei_comparison, drought_bias_all) %>%
   unlist()
 
 #drought classes broken out
@@ -246,10 +269,14 @@ min_clim = lapply(spei_comparison, FUN = function(x){median(x$n_historic)}) %>%
 contemp_clim = lapply(spei_comparison, FUN = function(x){median(x$n_contemporary)}) %>%
   unlist()
 
+contemp_min_year = lapply(spei_comparison, FUN = function(x){median(x$complete_year_min_contemporary)}) %>%
+  unlist()
+
 #merge into single dataframe that summarizes all results  
 valid_stations_joined = valid_stations %>%
-  mutate(bias = bias,
+  mutate(`Average Bias` = bias,
          min_clim = min_clim,
+         contemp_min_year = contemp_min_year,
          contemp_clim = contemp_clim,
          D0 = drought_class$D0,
          D1 = drought_class$D1,
@@ -259,9 +286,14 @@ valid_stations_joined = valid_stations %>%
 
 #filter for climatology with greater than 100 years for the long "historic" analysis 
 #and for locations with 30 years in the "contempary record"
+# valid_stations_filtered = valid_stations_joined %>%
+#   filter(min_clim >= 70,
+#          contemp_clim == 30)
+
 valid_stations_filtered = valid_stations_joined %>%
   filter(min_clim >= 70,
-         contemp_clim == 30)
+         contemp_clim == 30,
+         contemp_min_year > 1985)
 
 #################################################
 ################ Plot the Results ###############
@@ -270,7 +302,7 @@ valid_stations_filtered = valid_stations_joined %>%
 #define plotting
 col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
 
-classes = c('D0', 'D1', 'D2', 'D3', 'D4')
+classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4')
 
 for(c in 1:length(classes)){
   
@@ -289,10 +321,6 @@ for(c in 1:length(classes)){
   pts_plot
   
   # Krige
-  library(sf)
-  library(gstat)
-  library(raster)
-  library(stars)
   
   template = raster::raster(resolution=c(1/3,1/3),
                             crs = sp::CRS("+init=epsg:4326")) %>%
@@ -307,14 +335,9 @@ for(c in 1:length(classes)){
     drop_na(classes[c]) %>%
     st_as_sf
   
-  
-  
-  vgm1 <- gstat::variogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, data = temp_stations)
-  fit1 <- gstat::fit.variogram(vgm1, model = gstat::vgm("Gau")) # fit model
-  krig <- gstat::krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1]~1, 
-                       temp_stations, template, model=fit1) %>%
+  vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
+  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
     st_intersection(states)
-  
   krig_pts = st_coordinates(krig) %>%
     as_tibble() %>%
     mutate(val = krig$var1.pred)
@@ -331,7 +354,30 @@ for(c in 1:length(classes)){
           legend.key.width=unit(2,"cm"))
   
   final = cowplot::plot_grid(pts_plot, krig_plot, ncol = 1)
-  
+
+  # vgm1 = variogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, data = temp_stations)
+  # fit1 = fit.variogram(vgm1, model = gstat::vgm("Gau")) # fit model
+  # krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1]~1, 
+  #                      temp_stations, template, model=fit1) %>%
+  #   st_intersection(states)
+  # 
+  # krig_pts = st_coordinates(krig) %>%
+  #   as_tibble() %>%
+  #   mutate(val = krig$var1.pred)
+  # 
+  # krig_plot = ggplot(krig)+
+  #   geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
+  #   geom_sf(data = states, fill = 'transparent', color = 'black')+
+  #   labs(x = "", y = "")+
+  #   scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+  #                        labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+  #                        oob = scales::squish)+
+  #   theme_bw()+
+  #   theme(legend.position = 'bottom',
+  #         legend.key.width=unit(2,"cm"))
+  # 
+  # final = cowplot::plot_grid(pts_plot, krig_plot, ncol = 1)
+  # 
   ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/spei_bias_maps_',classes[c],'_',time_scale,'day_timescale_July1-Aug31.png'), width = 7, height = 10, units = 'in')
   #plot
 }
