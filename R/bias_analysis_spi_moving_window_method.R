@@ -14,18 +14,17 @@ library(doParallel)
 library(sf)
 library(automap)
 library(gstat)
-
 options(dplyr.summarise.inform = FALSE)
 
 #define base parameters
-time_scale_id = 2
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
                           c(4,5,6,7,8),
                           c(3,4,5,6,7,8))
 n_minimum = list(123,153,184)
-  
+
 contemporary_climatology_length = 30
 
 #define nice special
@@ -36,80 +35,125 @@ states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
   filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
   st_geometry()
 
-#define the SPI function to compute SPI based on defined params
-spi_vals = function(precip_data, time_scale){ 
-  #define some date based variables
-  precip_data$day = yday(precip_data$time)
-  precip_data$mday = day(precip_data$time)
-  precip_data$year = year(precip_data$time)
-  precip_data$month = month(precip_data$time)
-  
-  #Start SPI calculation
-  for(t in 1:length(time_scale)){ 
-    for(i in rev((length(precip_data$time)-92):length(precip_data$time))){ # compute SPI for 92 days (June 1 - August 31 is target range)
-      #calcualte index vectors of interest based on time and timescale
-      first_date_breaks = which(precip_data$mday == precip_data$mday[i] & precip_data$month == precip_data$month[i])
-      second_date_breaks = first_date_breaks-(time_scale[t]-1)
-      
-      #if there are negative indexes remove last year (incomplete data range)
-      #change this to remove all indexes from both vectors that are negative
-      if(!all(second_date_breaks < 0)){
-        pos_index = which(second_date_breaks > 0)
-        first_date_breaks = first_date_breaks[c(pos_index)]
-        second_date_breaks = second_date_breaks[c(pos_index)]
-      }
-      
-      #create slice vectors and group by vectors
-      for(j in 1:length(first_date_breaks)){
-        if(j == 1){
-          slice_vec = seq(second_date_breaks[j],first_date_breaks[j], by = 1)
-          group_by_vec = rep(j,(first_date_breaks[j] - second_date_breaks[j]+1))
-        }
-        else{
-          slice_vec = append(slice_vec, seq(second_date_breaks[j],first_date_breaks[j], by = 1))
-          group_by_vec = append(group_by_vec, rep(j,(first_date_breaks[j] - second_date_breaks[j]+1)))
-        }
-      }
-      
-      #slice data for appropriate periods
-      data_time_filter = precip_data %>%
-        slice(slice_vec) %>%
-        tibble::add_column(group_by_vec = group_by_vec)%>%
-        group_by(group_by_vec)%>%
-        dplyr::summarise(sum = sum(data/10, na.rm = T))
-      
-      #remove zeros because they cause the gamma dist to blow up to Inf
-      data_time_filter$sum[data_time_filter$sum == 0] = 0.01
-      
-      #compute date time for day/year of interest
-      date_time = precip_data$time[first_date_breaks] %>% as.Date()
-      
-      #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
-      pwm = pwm.ub(data_time_filter$sum)
-      #Probability-Weighted Moments to L-moments
-      lmoments_x = pwm2lmom(pwm)
-      #fit gamma
-      fit.pargam = pargam(lmoments_x)
-      #extract the gamma distrobution parameters
-      params = fit.pargam$para %>% as.data.frame() %>% t() %>% as.data.frame()
-      #compute probabilistic cdf 
-      fit.cdf = cdfgam(data_time_filter$sum, fit.pargam)
-      
-      if(i == length(precip_data$time)){
-        output.df = data.frame(time = date_time,
-                               spi = qnorm(fit.cdf, mean = 0, sd = 1),
-                               n = length(data_time_filter$sum))
-      }
-      else{
-        output.df = rbind(output.df, data.frame(time = date_time,
-                                                spi = qnorm(fit.cdf, mean = 0, sd = 1),
-                                                n = length(data_time_filter$sum)))
-      }
-    } 
-  }
-  output.df = output.df[order(output.df$time),]
-  return(output.df)
+#function to compute SPI
+spi_fun = function(x){
+  #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
+  pwm = pwm.ub(x)
+  #Probability-Weighted Moments to L-moments
+  lmoments_x = pwm2lmom(pwm)
+  #fit gamma
+  fit.pargam = pargam(lmoments_x)
+  #extract the gamma distrobution parameters
+  params = fit.pargam$para %>% as.data.frame() %>% t() %>% as.data.frame()
+  #compute probabilistic cdf 
+  fit.cdf = cdfgam(data_time_filter$sum, fit.pargam)
+  #compute SPI
+  spi = qnorm(fit.cdf[length(fit.cdf)], mean = 0, sd = 1)
+  return(spi)
 }
+
+#wrapper function for spi_fun that processes precip data and 
+#computes spi for different time periods
+daily_spi = function(data, time_scale, index_of_interest){ 
+  #define some date based variables
+  data$day = yday(data$time)
+  data$mday = day(data$time)
+  data$year = year(data$time)
+  data$month = month(data$time)
+  
+  #define some meta data on the index of interest 
+  max_year = data$year[index_of_interest]
+  mday_of_interest = data$mday[index_of_interest]
+  month_of_interest = data$month[index_of_interest]
+  
+  #filter data to not be newer then the index of interest
+  precip_data = data %>%
+    filter(year <= max_year)
+  
+  #calcualte index vectors of interest based on time and timescale
+  first_date_breaks = which(precip_data$mday == mday_of_interest & precip_data$month == month_of_interest)
+  second_date_breaks = first_date_breaks-(time_scale-1)
+  
+  #if there are negative indexes remove last year (incomplete data range)
+  #change this to remove all indexes from both vectors that are negative
+  if(!all(second_date_breaks < 0)){
+    pos_index = which(second_date_breaks > 0)
+    first_date_breaks = first_date_breaks[c(pos_index)]
+    second_date_breaks = second_date_breaks[c(pos_index)]
+  }
+  
+  #create slice vectors and group by vectors
+  for(j in 1:length(first_date_breaks)){
+    if(j == 1){
+      slice_vec = seq(second_date_breaks[j],first_date_breaks[j], by = 1)
+      group_by_vec = rep(j,(first_date_breaks[j] - second_date_breaks[j]+1))
+    }
+    else{
+      slice_vec = append(slice_vec, seq(second_date_breaks[j],first_date_breaks[j], by = 1))
+      group_by_vec = append(group_by_vec, rep(j,(first_date_breaks[j] - second_date_breaks[j]+1)))
+    }
+  }
+  
+  #slice data for appropriate periods
+  data_time_filter = precip_data %>%
+    slice(slice_vec) %>%
+    tibble::add_column(group_by_vec = group_by_vec)%>%
+    group_by(group_by_vec)%>%
+    dplyr::summarise(sum = sum(data/10, na.rm = T),
+                     year = median(year))
+  
+  #remove zeros because they cause the gamma dist to blow up to Inf
+  data_time_filter$sum[data_time_filter$sum == 0] = 0.01
+  
+  #compute date time for day/year of interest
+  date_time = precip_data$time[first_date_breaks[length(first_date_breaks)]] %>% as.Date()
+  
+  #30 year moving window 
+  last_30_years_data = data_time_filter %>%
+    filter(year > max_year - 29)
+  
+  tryCatch({  
+    #define output 
+    output.df = data.frame(time = date_time,
+                           spi_historical = spi_fun(data_time_filter$sum),
+                           n_historical = length(data_time_filter$sum),
+                           spi_contemporary = spi_fun(last_30_years_data$sum),
+                           n_contemporary = length(last_30_years_data$sum))
+  }, error = function(e){
+    output.df = data.frame(time = date_time,
+                           spi_historical = NA,
+                           n_historical = length(data_time_filter$sum),
+                           spi_contemporary = NA,
+                           n_contemporary = length(last_30_years_data))
+  })
+  
+  return(output.df)
+} 
+
+indicies_of_interest = which(data_filtered$month %in% c(6,7,8) & data_filtered$year > 1990)
+
+library(tictoc)
+tic()
+temp = indicies_of_interest %>%
+  purrr::map(function(i){
+    export = daily_spi(data_filtered, 30, i)
+    return(export)
+})
+fin = data.table::rbindlist(temp) %>%
+  .[order(.$time),]
+toc()
+
+temp = list()
+
+tictoc::tic()
+for(i in indicies_of_interest){
+  temp[[i]] = daily_spi(data_filtered, 30, i)
+}
+test = data.table::rbindlist(temp)
+
+tictoc::toc()
+
+test = lapply(list(data = data, time_scale = 30, index_of_interest = indicies_of_interest[length(indicies_of_interest)]), daily_spi)
 
 #read in dataframe of valid stations
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
@@ -124,70 +168,64 @@ registerDoParallel(cl)
 
 #time parallel run
 tictoc::tic()
-spi_comparison = foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
+spi_comparison = foreach(s = 1:length(valid_stations$id), 
+                         .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                                                         'lmomco', 'sf')) %dopar% {
-  tryCatch(
-    {
-      #pull in raw GHCN data
-      data_raw = ghcnd_search(
-        valid_stations$id[s],
-        date_min = NULL,
-        date_max = NULL,
-        var = "PRCP"
-      ) 
-      
-      #adjust documentation here for differnet restrictions based on timescale
-      complete_years = data_raw %$%
-        #its a list, select precip
-        prcp %>%
-        mutate(year = year(date),
-               month = month(date)) %>%
-        dplyr::select(date, prcp, year, month)%>%
-        rename(time = date, data = prcp)%>%
-        filter(month %in% months_of_interest[[time_scale_id]]) %>%
-        group_by(year) %>%
-        summarise(n = length(data)) %>%
-        filter(n == n_minimum[[time_scale_id]]) # defines number of obs per time scale for complete data by year
-      
-      #filter it for variable, time etc
-      data_filtered = data_raw %$%
-        #its a list, select precip
-        prcp %>%
-        mutate(year = year(date),
-               month = month(date)) %>%
-        dplyr::select(date, prcp, year, month)%>%
-        rename(time = date, data = prcp)%>%
-        filter(month %in% months_of_interest[[time_scale_id]],
-               year %in% complete_years$year)
-      
-      #this allows us to define flexability in the min year constraint (1991 or 1990 etc, more stations with less constraint)
-      complete_year_min_contemporary = complete_years$year[(length(complete_years$year) - (contemporary_climatology_length-1))]
-      
-      #filter for contempary
-      data_contemporary = data_filtered %>%
-        filter(year >= complete_year_min_contemporary)
-      
-      #compute SPI using all data
-      spi_historic = spi_vals(data_filtered, time_scale[[time_scale_id]]) %>%
-        rename(spi_historic = spi, n_historic = n)
-      
-      #compute SPI using only the current 30 years
-      spi_contemporary = spi_vals(data_contemporary, time_scale[[time_scale_id]]) %>%
-        rename(spi_contemporary = spi, n_contemporary = n)
-      
-      #join datasets for the final comparison dataframe
-      spi_merged = spi_historic %>%
-        filter(time %in% spi_contemporary$time) %>%
-        left_join(., spi_contemporary, by = 'time') %>%
-        mutate(diff = spi_historic - spi_contemporary,
-               complete_year_min_contemporary = complete_year_min_contemporary)
-    },
-    error = function(e){
-      spi_merged = NA
-    })  
-  
-  spi_merged                                             
-}
+    tryCatch(
+      {
+        #pull in raw GHCN data
+        data_raw = ghcnd_search(
+          valid_stations$id[s],
+          date_min = NULL,
+          date_max = NULL,
+          var = "PRCP"
+        ) 
+        
+        #adjust documentation here for differnet restrictions based on timescale
+        complete_years = data_raw %$%
+          #its a list, select precip
+          prcp %>%
+          mutate(year = year(date),
+                 month = month(date)) %>%
+          dplyr::select(date, prcp, year, month)%>%
+          rename(time = date, data = prcp)%>%
+          filter(month %in% months_of_interest[[time_scale_id]]) %>%
+          group_by(year) %>%
+          summarise(n = length(data)) %>%
+          filter(n == n_minimum[[time_scale_id]]) # defines number of obs per time scale for complete data by year
+        
+        #filter it for variable, time etc
+        data_filtered = data_raw %$%
+          #its a list, select precip
+          prcp %>%
+          mutate(year = year(date),
+                 month = month(date)) %>%
+          dplyr::select(date, prcp, year, month)%>%
+          rename(time = date, data = prcp)%>%
+          filter(month %in% months_of_interest[[time_scale_id]],
+                 year %in% complete_years$year)
+        
+        #compute SPI using all data
+        spi_historic = spi_vals(data_filtered, time_scale[[time_scale_id]]) %>%
+          rename(spi_historic = spi, n_historic = n)
+        
+        #compute SPI using only the current 30 years
+        spi_contemporary = spi_vals(data_contemporary, time_scale[[time_scale_id]]) %>%
+          rename(spi_contemporary = spi, n_contemporary = n)
+        
+        #join datasets for the final comparison dataframe
+        spi_merged = spi_historic %>%
+          filter(time %in% spi_contemporary$time) %>%
+          left_join(., spi_contemporary, by = 'time') %>%
+          mutate(diff = spi_historic - spi_contemporary,
+                 complete_year_min_contemporary = complete_year_min_contemporary)
+      },
+      error = function(e){
+        spi_merged = NA
+      })  
+    
+    spi_merged                                             
+  }
 tictoc::toc()
 
 #stop cluster
@@ -247,7 +285,7 @@ drought_bias_all = function(x){
     tidyr::drop_na() %>%
     as_tibble()%>%
     summarise(bias = median(diff, na.rm = T)) 
-
+  
   return(temp$bias)
 }
 
