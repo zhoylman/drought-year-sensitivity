@@ -25,7 +25,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 1
+time_scale_id = 2
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
