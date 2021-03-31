@@ -2,7 +2,11 @@
 ########### Drought Metric Bias (SPI) ###########
 #################################################
 
-#moving window based analysis
+# moving window based analysis.
+# this analysis computes SPI for "valid" GHCN sites
+# as defined in ~/drought-year-sensitivity/R/valid_stations_precip.R
+# for the longest period of record possible and for  
+# the previous 30 year moving window for years with complete data.
 
 library(rnoaa) 
 library(tidyverse)
@@ -18,7 +22,9 @@ library(automap)
 library(gstat)
 options(dplyr.summarise.inform = FALSE)
 
-#define base parameters
+# define base parameters 
+# ID to define time scale, months of interest and minimum
+# number of records, coorisponding to "complete data"
 time_scale_id = 1
 time_scale = list(30,60,90)
 
