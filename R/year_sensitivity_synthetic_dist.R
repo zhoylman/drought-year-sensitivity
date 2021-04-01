@@ -6,7 +6,7 @@ library(lmomco)
 library(cowplot)
 
 #define functions to compute probabilistic CDF and probabilistic parameters
-gamma_cdf = function(x) {
+gamma_fit_spi = function(x, export_opts = 'SPI') {
   #load the package needed for these computations
   library(lmomco)
   #first try gamma
@@ -26,36 +26,17 @@ gamma_cdf = function(x) {
       fit.gam = pargam(lmoments_x)
       #compute probabilistic cdf 
       fit.cdf = cdfgam(x, fit.gam)
-      return(fit.cdf) 
-    },
-    #else return NA
-    error=function(cond) {
-      return(NA)
-    })
-}
-gamma_params = function(x) {
-  #load the package needed for these computations
-  library(lmomco)
-  #first try gamma
-  tryCatch(
-    {
-      x = as.numeric(x)
-      #if precip is 0, replace it with 0.01mm Really Dry
-      if(any(x == 0, na.rm = T)){
-        index = which(x == 0)
-        x[index] = 0.01
+      #compute spi
+      spi = qnorm(fit.cdf, mean = 0, sd = 1)
+      if(export_opts == 'CDF'){
+        return(fit.cdf) 
       }
-      #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
-      pwm = pwm.ub(x)
-      #Probability-Weighted Moments to L-moments
-      lmoments_x = pwm2lmom(pwm)
-      #fit gamma
-      fit.gam = pargam(lmoments_x)
-      #compute probabilistic cdf 
-      fit.cdf = cdfgam(x, fit.gam)
-      #compute standard normal equivelant
-      standard_norm = qnorm(fit.cdf, mean = 0, sd = 1)
-      return(fit.gam) 
+      if(export_opts == 'params'){
+        return(fit.gam) 
+      }
+      if(export_opts == 'SPI'){
+        return(spi) 
+      }
     },
     #else return NA
     error=function(cond) {
@@ -72,10 +53,7 @@ shape = 40 #alpha
 rate = 0.7 #beta = 1/rate
 
 #set seed for reproducability
-set.seed(99)
-
-#generate synthetic data (synthetic precipitation distrobution based values from Wu et al., 2005)
-data = rgamma(100, shape, rate)
+set.seed(98)
 
 #define monte carlo information
 n_samples = seq(1,100,1)
@@ -89,6 +67,8 @@ export_df_rate = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation
 
 #run monte carlo
 for(i_n_simulations in 1:n_simulation){
+  #generate synthetic data (synthetic precipitation distrobution based values from Wu et al., 2005)
+  data = rgamma(1000, shape, rate)
   for(i_n_samples in n_samples){
     #Stationary data first
     #randomly sample from the synthetic data above
@@ -103,19 +83,19 @@ for(i_n_simulations in 1:n_simulation){
     #compute the true vals with known parameters
     true_vals = cdfgam(temp_data, vec2par(c(shape, 1/rate), 'gam'))
     #compute probabilistic CDF
-    probabilistic_vals = gamma_cdf(temp_data)
+    probabilistic_vals = gamma_fit_spi(temp_data, 'CDF')
     #compute the Mean Absolute Error Prob - True
     mae = mean(abs(probabilistic_vals - true_vals))
     
     #SPI comparison
     true_spi_vals = qnorm(true_vals)
     #comupute probabilistic vals from limited climatology
-    probabilistic_spi_vals = qnorm(probabilistic_vals)
+    probabilistic_spi_vals = gamma_fit_spi(temp_data, 'SPI')
     #compute MAE of the spi vals
     mae_spi = mean(abs(probabilistic_spi_vals - true_spi_vals))
     
     #compute parameters of probability dist given the limited sample
-    params = gamma_params(temp_data)
+    params = gamma_fit_spi(temp_data, 'params')
     
     #populate the export dataframes
     export_df_mae[i_n_samples, i_n_simulations] = mae
@@ -153,38 +133,46 @@ summary_spi_mae = summarize_fun(export_df_spi_mae)
 summary_rate = summarize_fun(export_df_rate)
 summary_shape = summarize_fun(export_df_shape)
 
-which(summary_mae$upper < 0.05) %>% first()
-which(summary_spi_mae$upper < 0.2) %>% first()
-
-
-
 #plot the results
 plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'CDF Mean Absolute Error\n(Limited Climatology - True Value)')+
+  labs(x = 'Number of Observations in "Climatology"', y = 'CDF Mean Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  geom_hline(yintercept=0.05, linetype="dashed", color = "red")+
-  geom_vline(xintercept = which(summary_mae$upper < 0.05) %>% first(), linetype="dashed", color = "red")+
-  geom_text(data = NULL, aes(x =65,
-                             y = 0.08, label = 'CDF MAE for 75% of Simulations:\n< 0.05 at 33 years'), hjust = 0.5)+
-  geom_text(data = NULL, aes(x =65, y = 0, label = 'Median CDF MAE = 0.0323 at 33 years'), hjust = 0.5)+
-  geom_segment(data = NULL, aes(x = 34, y = 0.028, xend = 37.5, yend = 0.005))
-
+  geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_mae[30,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_mae[30,]$median, xend = 45, yend = summary_mae[30,]$median + .08), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_mae[60,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = summary_mae[60,]$median, xend = 70, yend = summary_mae[60,]$median + .05), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_mae[90,]$median  + .02), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_mae[30,]$median + .08,  
+                             label = paste0(summary_mae[30,]$median %>% round(., 2), ' ± ', (summary_mae[30,]$upper - summary_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 71, y = summary_mae[60,]$median + .05, 
+                             label = paste0(summary_mae[60,]$median %>% round(., 2), ' ± ', (summary_mae[60,]$upper - summary_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 88, y = summary_mae[90,]$median + .027, 
+                             label = paste0(summary_mae[90,]$median %>% round(., 2), ' ± ', (summary_mae[90,]$upper - summary_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
+  scale_x_continuous(breaks = c(0,30,60,90))+
+  geom_line()
+  
 plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Mean Absolute Error\n(Limited Climatology - True Value)')+
+  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Mean Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  geom_hline(yintercept=0.2, linetype="dashed", color = "red")+
-  geom_vline(xintercept = which(summary_spi_mae$upper < 0.2) %>% first(), linetype="dashed", color = "red")+
-  geom_text(data = NULL, aes(x =65,
-                             y = 0.3, label = 'SPI MAE for 75% of Simulations:\n< 0.2 at 31 years'), hjust = 0.5)+
-  geom_text(data = NULL, aes(x =65,
-                             y = 0, label = 'Median SPI MAE = 0.139 at 31 years'), hjust = 0.5)+
-  geom_segment(data = NULL, aes(x = 32, y = 0.12, xend = 39, yend = 0.02))
+  geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_spi_mae[30,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_spi_mae[30,]$median, xend = 45, yend = summary_spi_mae[30,]$median + .25), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_spi_mae[60,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = summary_spi_mae[60,]$median, xend = 70, yend = summary_spi_mae[60,]$median + .15), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_spi_mae[90,]$median  + .05), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_spi_mae[30,]$median + .25, 
+                             label = paste0(summary_spi_mae[30,]$median %>% round(., 2), ' ± ', (summary_spi_mae[30,]$upper - summary_spi_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 71, y = summary_spi_mae[60,]$median + .15, 
+                             label = paste0(summary_spi_mae[60,]$median %>% round(., 2), ' ± ', (summary_spi_mae[60,]$upper - summary_spi_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 88, y = summary_spi_mae[90,]$median + .08, 
+                             label = paste0(summary_spi_mae[90,]$median %>% round(., 2), ' ± ', (summary_spi_mae[90,]$upper - summary_spi_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
+  scale_x_continuous(breaks = c(0,30,60,90))+
+  geom_line()
 
 plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -192,8 +180,22 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Rate Parameter')+
   theme(plot.title = element_text(hjust = 0.5))+ 
-  geom_text(data = NULL, aes(x = 65, y = 1.5, label = 'True Rate Parameter = 0.7'), size = 5)+
-  geom_hline(yintercept=0.7, linetype="dashed", color = "red")
+  geom_text(data = NULL, aes(x = 50, y = 3.8, label = 'True Rate Parameter = 0.7'), size = 6)+
+  geom_hline(yintercept=0.7, linetype="dashed", color = "red")+
+  geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_rate[30,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_rate[30,]$median, xend = 45, yend = summary_rate[30,]$median + 1.25), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_rate[60,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = summary_rate[60,]$median, xend = 70, yend = summary_rate[60,]$median + 0.75), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_rate[90,]$median  + .15), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_rate[30,]$median + 1.25, 
+                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
+                                            (summary_rate[30,]$upper - summary_rate[30,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 71, y = summary_rate[60,]$median + 0.75, 
+                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
+                                             (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 88, y = summary_rate[90,]$median + .28, 
+                             label = paste0(summary_rate[90,]$median %>% round(., 2), ' ± ', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 2))), hjust = 0)+
+  scale_x_continuous(breaks = c(0,30,60,90))
 
 plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -201,34 +203,33 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Shape Parameter')+
   theme(plot.title = element_text(hjust = 0.5))+ 
-  geom_text(data = NULL, aes(x = 65, y = 80, label = 'True Shape Parameter = 40'), size = 5)+
-  geom_hline(yintercept=40, linetype="dashed", color = "red")
+  geom_text(data = NULL, aes(x = 50, y = 225, label = 'True Shape Parameter = 40'), size = 6)+
+  geom_hline(yintercept=40, linetype="dashed", color = "red")+
+  geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_shape[30,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_shape[30,]$median, xend = 45, yend = summary_shape[30,]$median + 75), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_shape[60,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 60, y = summary_shape[60,]$median, xend = 70, yend = summary_shape[60,]$median + 50), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_shape[90,]$median  + 10), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_shape[30,]$median + 75, 
+                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
+                                            (summary_shape[30,]$upper - summary_shape[30,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 71, y = summary_shape[60,]$median + 50, 
+                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
+                                            (summary_shape[60,]$upper - summary_shape[60,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 87, y = summary_shape[90,]$median + 20, 
+                             label = paste0(summary_shape[90,]$median %>% round(., 2), ' ± ', (summary_shape[90,]$upper - summary_shape[90,]$lower) %>% round(., 2))), hjust = 0)+
+  scale_x_continuous(breaks = c(0,30,60,90))
 
 #combine to single plot
 plot_final = cowplot::plot_grid(plot_rate, plot_shape,plot_mae, plot_spi_mae,
                                 nrow = 2, ncol = 2, align = 'hv')
-
 title = ggdraw() + 
-  draw_label(
-    "Monte Carlo Simulation (1000 iterations)",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0,
-    size = 20
-  ) +
-  theme(
-    # add margin on the left of the drawing canvas,
-    # so title is aligned with middle of grid
-    plot.margin = margin(0, 0, 0, 300)
-  )
+  draw_label("Monte Carlo Simulation (1000 iterations)", fontface = 'bold',x = 0,hjust = 0,size = 20) +
+  theme(plot.margin = margin(0, 0, 0, 300))
 
-final = plot_grid(
-  title, plot_final,
-  ncol = 1,
-  # rel_heights values control vertical title margins
-  rel_heights = c(0.1, 1)
-)
+final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
 
+final
 #save
 ggsave(final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo.png', width = 13, height = 9, units = 'in')
 #fin stationary dist
@@ -236,6 +237,7 @@ ggsave(final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitiv
 
 
 
+# coga -> for defining gamma distrobutions
 
 # likely wont do the below analysis.... saving for now. 
 ######################################################################################################################

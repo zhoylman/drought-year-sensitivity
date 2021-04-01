@@ -151,8 +151,8 @@ daily_spi = function(data, time_scale, index_of_interest){
     
     #35 year moving window filter to compute "contempary SPI values"
     contempary_data = data_time_filter %>%
-      #this is computed for the most current 35 year time period
-      filter(year > max_year - 34)
+      #this is computed for the most current 30 year time period
+      filter(year > max_year - 29)
   
     #define output dataframe and conduct the SPI calculation. SPI is computed using the 
     #afor-defined spi_fun
@@ -257,7 +257,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
             export = daily_spi(data_filtered, time_scale[[time_scale_id]], i)
             return(export)
           })
-        #merge (rbind) the results and order them by time
+        #merge (rbind) the results and order them by time # bind_rows - dplyr
         spi_merged = data.table::rbindlist(temp) %>%
           .[order(.$time),] %>% 
           as_tibble()
@@ -281,7 +281,7 @@ stopCluster(cl)
 
 #save out big list
 saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_35_year_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_35_year_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
+spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
@@ -293,7 +293,9 @@ drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
 drought_class_bias = function(x){
   #dummy data frame to ensure all levels are present. 
   #we will bind this to the final summary data to ensure continuity
-  dummy_df = x[1:5,] %>%
+  dummy_df = x[1:5,] 
+  dummy_df[1:5,] = NA
+  dummy_df = dummy_df%>%
     mutate(drought = as.factor(c('D0', 'D1', 'D2', 'D3', 'D4')),
            month = NA,
            year = NA,
@@ -310,7 +312,7 @@ drought_class_bias = function(x){
     #filter for time period of intest
     filter(month %in% c(6,7,8),
            #filter for a 28 year minimum climatology in the contempary data
-           n_contemporary >= 28,
+           n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
     #compute the grouping bins
@@ -353,9 +355,9 @@ drought_bias_all = function(x){
     #filter the data for months of interest
     filter(month %in% c(6,7,8),
            #filter for historical drought conditions
-           spi_historical <= -0.5,
+           #spi_historical <= -0.5,
            #filter for a 28 year minimum climatology in the contempary data
-           n_contemporary >= 28,
+           n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
     #drop nas

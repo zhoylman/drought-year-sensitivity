@@ -82,7 +82,7 @@ nobs_list = foreach(s = 1:length(filtered_stations$id))%dopar%{
 #stop cluster
 stopCluster(cl)
 
-#combine results to single df for analysis
+#combine results to single df for analysis # dplyr::bind_rows(list)
 valid_stations_params = data.table::rbindlist(nobs_list) %>%
   filter(nobs >=70 ) 
 
