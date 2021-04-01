@@ -157,6 +157,7 @@ which(summary_mae$upper < 0.05) %>% first()
 which(summary_spi_mae$upper < 0.2) %>% first()
 
 
+
 #plot the results
 plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -185,14 +186,11 @@ plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = 
                              y = 0, label = 'Median SPI MAE = 0.139 at 31 years'), hjust = 0.5)+
   geom_segment(data = NULL, aes(x = 32, y = 0.12, xend = 39, yend = 0.02))
 
-plot_spi_mae
-
 plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Rate Parameter')+
-  #ggtitle('Monte Carlo Simulation (1000 simulations)')+
   theme(plot.title = element_text(hjust = 0.5))+ 
   geom_text(data = NULL, aes(x = 65, y = 1.5, label = 'True Rate Parameter = 0.7'), size = 5)+
   geom_hline(yintercept=0.7, linetype="dashed", color = "red")
@@ -220,7 +218,7 @@ title = ggdraw() +
   ) +
   theme(
     # add margin on the left of the drawing canvas,
-    # so title is aligned with left edge of first plot
+    # so title is aligned with middle of grid
     plot.margin = margin(0, 0, 0, 300)
   )
 

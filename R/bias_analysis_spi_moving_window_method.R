@@ -6,7 +6,7 @@
 # this analysis computes SPI for "valid" GHCN sites
 # as defined in ~/drought-year-sensitivity/R/valid_stations_precip.R
 # for the longest period of record possible and for  
-# the previous 30 year moving window for years with complete data.
+# the previous 35 year moving window for years with complete data.
 
 library(rnoaa) 
 library(tidyverse)
@@ -25,15 +25,13 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
                           c(4,5,6,7,8),
                           c(3,4,5,6,7,8))
 n_minimum = list(123,153,184)
-
-contemporary_climatology_length = 30
 
 # define nice special
 `%notin%` = Negate(`%in%`)
@@ -151,10 +149,10 @@ daily_spi = function(data, time_scale, index_of_interest){
     #compute date time for day/year of interest
     date_time = precip_data$time[first_date_breaks[length(first_date_breaks)]] %>% as.Date()
     
-    #30 year moving window filter to compute "contempary SPI values"
-    last_30_years_data = data_time_filter %>%
-      #this is computed for the most current 30 year time period
-      filter(year > max_year - 29)
+    #35 year moving window filter to compute "contempary SPI values"
+    contempary_data = data_time_filter %>%
+      #this is computed for the most current 35 year time period
+      filter(year > max_year - 34)
   
     #define output dataframe and conduct the SPI calculation. SPI is computed using the 
     #afor-defined spi_fun
@@ -164,10 +162,10 @@ daily_spi = function(data, time_scale, index_of_interest){
                            spi_historical = spi_fun(data_time_filter$sum),
                            #report the number of years in this SPI calculation
                            n_historical = length(data_time_filter$sum),
-                           #compute SPI using the most current 30 years of data
-                           spi_contemporary = spi_fun(last_30_years_data$sum),
+                           #compute SPI using the most current 35 years of data
+                           spi_contemporary = spi_fun(contempary_data$sum),
                            #report nymber of years in the SPI calculation
-                           n_contemporary = length(last_30_years_data$sum))
+                           n_contemporary = length(contempary_data$sum))
     #basic error handling. generally for if a gamma fit cannot be obtained
     #there is additional error handling in the spi_fun above
   }, error=function(cond) {
@@ -282,8 +280,8 @@ tictoc::toc()
 stopCluster(cl)
 
 #save out big list
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_35_year_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
+spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_35_year_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
