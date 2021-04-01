@@ -6,7 +6,7 @@
 # this analysis computes SPI for "valid" GHCN sites
 # as defined in ~/drought-year-sensitivity/R/valid_stations_precip.R
 # for the longest period of record possible and for  
-# the previous 35 year moving window for years with complete data.
+# the previous 30 year moving window for years with complete data.
 
 library(rnoaa) 
 library(tidyverse)
@@ -25,7 +25,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 1
+time_scale_id = 3
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -149,7 +149,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     #compute date time for day/year of interest
     date_time = precip_data$time[first_date_breaks[length(first_date_breaks)]] %>% as.Date()
     
-    #35 year moving window filter to compute "contempary SPI values"
+    #30 year moving window filter to compute "contempary SPI values"
     contempary_data = data_time_filter %>%
       #this is computed for the most current 30 year time period
       filter(year > max_year - 29)
@@ -162,7 +162,7 @@ daily_spi = function(data, time_scale, index_of_interest){
                            spi_historical = spi_fun(data_time_filter$sum),
                            #report the number of years in this SPI calculation
                            n_historical = length(data_time_filter$sum),
-                           #compute SPI using the most current 35 years of data
+                           #compute SPI using the most current 30 years of data
                            spi_contemporary = spi_fun(contempary_data$sum),
                            #report nymber of years in the SPI calculation
                            n_contemporary = length(contempary_data$sum))
@@ -280,7 +280,7 @@ tictoc::toc()
 stopCluster(cl)
 
 #save out big list
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_35_year_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
 spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
@@ -311,7 +311,7 @@ drought_class_bias = function(x){
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
-           #filter for a 28 year minimum climatology in the contempary data
+           #filter for a 25 year minimum climatology in the contempary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
@@ -356,7 +356,7 @@ drought_bias_all = function(x){
     filter(month %in% c(6,7,8),
            #filter for historical drought conditions
            #spi_historical <= -0.5,
-           #filter for a 28 year minimum climatology in the contempary data
+           #filter for a 25 year minimum climatology in the contempary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
@@ -383,80 +383,80 @@ drought_class = lapply(spi_comparison, drought_class_bias) %>%
 
 apply(drought_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
 
-#merge into single dataframe that summarizes all results  
-valid_stations_filtered = valid_stations %>%
-  mutate(`Average Bias` = bias,
-         D0 = drought_class$D0,
-         D1 = drought_class$D1,
-         D2 = drought_class$D2,
-         D3 = drought_class$D3,
-         D4 = drought_class$D4)
-
-#################################################
-################ Plot the Results ###############
-#################################################
-
-#define plotting parameters
-#color ramp
-col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
-
-#classes to loop through for plotting and kriging
-classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4')
-
-for(c in 1:length(classes)){
-  #define the temp stations assosiated with the class of interest
-  temp_stations = valid_stations_filtered %>%
-    drop_na(classes[c]) %>%
-    st_as_sf
-  #first lets plot the point data itself
-  pts_plot = ggplot(temp_stations)+
-    geom_sf(data = states)+
-    geom_sf(aes(color = get(classes[c])))+
-    scale_color_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
-                          labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
-                          oob = scales::squish, guide = F)+
-    theme_bw()+
-    ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
-    theme(legend.position = 'none',
-          legend.key.width=unit(2,"cm"),
-          plot.title = element_text(hjust = 0.5))
+  #merge into single dataframe that summarizes all results  
+  valid_stations_filtered = valid_stations %>%
+    mutate(`Average Bias` = bias,
+           D0 = drought_class$D0,
+           D1 = drought_class$D1,
+           D2 = drought_class$D2,
+           D3 = drought_class$D3,
+           D4 = drought_class$D4)
   
-  #krige the reults using autofitting the variogram (package automap)
-  #template raster to interpolate over
-  template = raster::raster(resolution=c(1/3,1/3),
-                            crs = sp::CRS("+init=epsg:4326")) %>%
-    raster::crop(., as(states, 'Spatial')) %>%
-    raster::rasterToPoints() %>%
-    as.data.frame() %>%
-    st_as_sf(., coords = c('x', 'y')) 
-  st_crs(template) = st_crs(4326)
+  #################################################
+  ################ Plot the Results ###############
+  #################################################
   
-  #fit the variogram
-  vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
-  #krige the variogram results
-  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
-    st_intersection(states)
-  #convert to a point system for tile plotting
-  krig_pts = st_coordinates(krig) %>%
-    as_tibble() %>%
-    mutate(val = krig$var1.pred)
-  #define the kriged map plot
-  krig_plot = ggplot(krig)+
-    geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
-    geom_sf(data = states, fill = 'transparent', color = 'black')+
-    labs(x = "", y = "")+
-    ggtitle(NULL)+
-    scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
-                         labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
-                         oob = scales::squish)+
-    theme_bw()+
-    theme(legend.position = 'bottom',
-          legend.key.width=unit(2,"cm"))
-  #generate the final plot by doing a plot_grid call, first
-  #align the plots and shrink the space between them by using an empty plot
-  #and reducing the relative height of the middle plot to a negative value
-  final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.2,1), align = 'v')
-  #save it out
-  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
-  #fin
-}
+  #define plotting parameters
+  #color ramp
+  col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
+  
+  #classes to loop through for plotting and kriging
+  classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4')
+  
+  for(c in 1:length(classes)){
+    #define the temp stations assosiated with the class of interest
+    temp_stations = valid_stations_filtered %>%
+      drop_na(classes[c]) %>%
+      st_as_sf
+    #first lets plot the point data itself
+    pts_plot = ggplot(temp_stations)+
+      geom_sf(data = states)+
+      geom_sf(aes(color = get(classes[c])))+
+      scale_color_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+                            labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+                            oob = scales::squish, guide = F)+
+      theme_bw()+
+      ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
+      theme(legend.position = 'none',
+            legend.key.width=unit(2,"cm"),
+            plot.title = element_text(hjust = 0.5))
+    
+    #krige the reults using autofitting the variogram (package automap)
+    #template raster to interpolate over
+    template = raster::raster(resolution=c(1/3,1/3),
+                              crs = sp::CRS("+init=epsg:4326")) %>%
+      raster::crop(., as(states, 'Spatial')) %>%
+      raster::rasterToPoints() %>%
+      as.data.frame() %>%
+      st_as_sf(., coords = c('x', 'y')) 
+    st_crs(template) = st_crs(4326)
+    
+    #fit the variogram
+    vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
+    #krige the variogram results
+    krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
+      st_intersection(states)
+    #convert to a point system for tile plotting
+    krig_pts = st_coordinates(krig) %>%
+      as_tibble() %>%
+      mutate(val = krig$var1.pred)
+    #define the kriged map plot
+    krig_plot = ggplot(krig)+
+      geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
+      geom_sf(data = states, fill = 'transparent', color = 'black')+
+      labs(x = "", y = "")+
+      ggtitle(NULL)+
+      scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+                           oob = scales::squish)+
+      theme_bw()+
+      theme(legend.position = 'bottom',
+            legend.key.width=unit(2,"cm"))
+    #generate the final plot by doing a plot_grid call, first
+    #align the plots and shrink the space between them by using an empty plot
+    #and reducing the relative height of the middle plot to a negative value
+    final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.2,1), align = 'v')
+    #save it out
+    ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+    #fin
+  }
