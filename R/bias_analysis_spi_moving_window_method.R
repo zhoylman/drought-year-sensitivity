@@ -25,7 +25,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 1
+time_scale_id = 3
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -371,17 +371,17 @@ drought_bias_all = function(x){
 }
 
 # compute average bias for all data together (wet and dry, all D classes together)
-time = lapply(spi_comparison, function(x) data.frame(quantile(x$n_contemporary, c(.1,.5,.9))) %>% t) %>%
-  data.table::rbindlist(.)
-
-# compute average bias for all data together (wet and dry, all D classes together)
 bias = lapply(spi_comparison, drought_bias_all) %>%
   unlist()
+
+print(paste0('Stations Lost (%): ', sum(is.na(bias))/length(bias)*100))
 
 #drought classes broken out
 drought_class = lapply(spi_comparison, drought_class_bias) %>%
   data.table::rbindlist(.) %>%
   as_tibble()
+
+apply(drought_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
 
 #merge into single dataframe that summarizes all results  
 valid_stations_filtered = valid_stations %>%
