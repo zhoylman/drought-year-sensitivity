@@ -252,12 +252,13 @@ set.seed(100)
 #non-stationary distrobution
 #define probability distrobution with shifting parameters (10 decade chunks)
 n_ = rep(1,100)
+n_samples = seq(1,100,1)
 shape_non_stationary = seq(40,49, length.out = 100) # alpha
 rate_non_stationary = seq(0.6,3, length.out = 100) # rate
 
 input_matrix = data.frame(x = n_, shape = shape_non_stationary, rate = rate_non_stationary)
 
-n_simulation = 100
+#n_simulation = 100
 
 #set up export data frames
 export_non_stationary_df_mae = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
@@ -271,20 +272,21 @@ for(i_n_simulations in 1:n_simulation){
   #randomly generate the distrobtuion each simulation
   data_non_stationary = input_matrix %>%
     mutate(data =  rgamma(x, shape, rate)) %>%
-    select(data)%>%
     mutate(time = seq(1:100))
-  export_non_stationary_rate_shape_full[i_n_simulations,1] = gamma_params(data_non_stationary$data)$para[1]
-  export_non_stationary_rate_shape_full[i_n_simulations,2] = gamma_params(data_non_stationary$data)$para[2]
+  export_non_stationary_rate_shape_full[i_n_simulations,1] = gamma_fit_spi(data_non_stationary$data, 'params')$para[1]
+  export_non_stationary_rate_shape_full[i_n_simulations,2] = gamma_fit_spi(data_non_stationary$data, 'params')$para[2]
   
   for(i_n_samples in n_samples){
     #pull data from the end of teh distrobution backwards
     #simulates what we would do in the case of a moving window analysis
     #to test parameter stability 
     temp_data = data_non_stationary[length(data_non_stationary$data):(length(data_non_stationary$data)-(i_n_samples-1)),] %>%
-      mutate(contemporary_vals = gamma_cdf(data))
+      mutate(contemporary_vals = gamma_fit_spi(data, 'SPI'),
+             contemporary_vals_conv = pcoga(data, shape=shape, rate = rate))
+
     #here we will simulate the assumptions of Wu and Guttman
     historical_values = data_non_stationary %>%
-      mutate(historical_values = gamma_cdf(data))
+      mutate(historical_values = gamma_fit_spi(data, 'SPI'))
     #join data
     joined = left_join(historical_values, temp_data, by = 'time') %>%
       drop_na() %>%
@@ -292,7 +294,7 @@ for(i_n_simulations in 1:n_simulation){
     
     mae = mean(joined$diff)
     #compute parameters of probability dist given the limited sample
-    params = gamma_params(temp_data$contemporary_vals)
+    params = gamma_fit_spi(temp_data$data, 'params')
     #populate the export dataframes
     export_non_stationary_df_mae[i_n_samples, i_n_simulations] = mae
     if(is.na(params) == T){
@@ -301,7 +303,7 @@ for(i_n_simulations in 1:n_simulation){
     }
     if(is.na(params) == F){
       export_non_stationary_df_shape[i_n_samples, i_n_simulations] = params$para[1]
-      export_non_stationary_df_rate[i_n_samples, i_n_simulations] = params$para[2]
+      export_non_stationary_df_rate[i_n_samples, i_n_simulations] = 1/params$para[2]
     }
   }
 }
@@ -312,11 +314,15 @@ summary_non_stationary_shape = summarize_fun(export_non_stationary_df_shape)
 
 #plot the results
 plot_mae = ggplot(data = summary_non_stationary_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
+  geom_ribbon(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'red', alpha = .20)+
+  geom_line(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
   labs(x = 'Number of Observations in "Climatology"', y = 'Mean Absolute Error\n(Contempary - Historical)')+
   theme(plot.title = element_text(hjust = 0.5))
+
+plot_mae
 
 plot_rate = ggplot(data = summary_non_stationary_rate, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -342,3 +348,32 @@ plot_final = cowplot::plot_grid(plot_rate, plot_shape, plot_mae, nrow = 3)
 #save
 ggsave(plot_final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 6, height = 8, units = 'in')
 #fin stationary dist
+
+
+
+
+library(coga)
+library(lmomco)
+#define some params for the gamma function
+shape = c(40,41,42)
+rate = c(0.5,1,2)
+
+#using coga calculate the convoluted distrobution
+pcoga(1:200, shape=shape, rate=rate) %>% plot
+
+#plot each independent function
+for(i in 1:3){
+  #compute the dist emulating prob dist fitting
+  if(i == 1){
+    data_new = rgamma(100, shape[i], rate[i])
+  }
+  if(i!=1){
+    data_new = append(data_new, rgamma(100, shape[i], rate[i]))
+  }
+  if(i == 3){
+    points(data_new, gamma_fit_spi(data_new, 'CDF'), col = 'blue')
+  }
+  
+  cdfgam(1:200, vec2par(c(shape[i], 1/rate[i]), 'gam')) %>% lines(.)
+  pcoga(1:200, shape=shape[i], rate=rate[i]) %>% points(., col = 'red')
+}
