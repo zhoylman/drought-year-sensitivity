@@ -4,6 +4,7 @@
 library(tidyverse)
 library(lmomco)
 library(cowplot)
+library(coga)
 
 #define functions to compute probabilistic CDF and probabilistic parameters
 gamma_fit_spi = function(x, export_opts = 'SPI') {
@@ -224,7 +225,7 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
 plot_final = cowplot::plot_grid(plot_rate, plot_shape,plot_mae, plot_spi_mae,
                                 nrow = 2, ncol = 2, align = 'hv')
 title = ggdraw() + 
-  draw_label("Monte Carlo Simulation (1000 iterations)", fontface = 'bold',x = 0,hjust = 0,size = 20) +
+  draw_label("Stationary Monte Carlo Simulation (1000 iterations)", fontface = 'bold',x = 0,hjust = 0,size = 20) +
   theme(plot.margin = margin(0, 0, 0, 300))
 
 final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
@@ -261,7 +262,8 @@ input_matrix = data.frame(x = n_, shape = shape_non_stationary, rate = rate_non_
 #n_simulation = 100
 
 #set up export data frames
-export_non_stationary_df_mae = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
+export_non_stationary_df_mae_spi = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
+export_non_stationary_df_mae_cdf = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
 export_non_stationary_df_shape = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
 export_non_stationary_df_rate = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
 export_non_stationary_rate_shape_full = data.frame(matrix(nrow = n_simulation, ncol = 2))
@@ -281,22 +283,27 @@ for(i_n_simulations in 1:n_simulation){
     #simulates what we would do in the case of a moving window analysis
     #to test parameter stability 
     temp_data = data_non_stationary[length(data_non_stationary$data):(length(data_non_stationary$data)-(i_n_samples-1)),] %>%
-      mutate(contemporary_vals = gamma_fit_spi(data, 'SPI'),
-             contemporary_vals_conv = pcoga(data, shape=shape, rate = rate))
+      mutate(contemporary_vals_spi = gamma_fit_spi(data, 'SPI'),
+             contemporary_vals_cdf = gamma_fit_spi(data, 'CDF'))
 
     #here we will simulate the assumptions of Wu and Guttman
     historical_values = data_non_stationary %>%
-      mutate(historical_values = gamma_fit_spi(data, 'SPI'))
+      mutate(historical_values_spi = gamma_fit_spi(data, 'SPI'),
+             historical_vals_cdf = gamma_fit_spi(data, 'CDF'))
     #join data
     joined = left_join(historical_values, temp_data, by = 'time') %>%
       drop_na() %>%
-      mutate(diff = abs(contemporary_vals - historical_values))
+      mutate(diff_spi = abs(contemporary_vals_spi - historical_values_spi),
+             diff_cdf = abs(contemporary_vals_cdf - historical_vals_cdf))
     
-    mae = mean(joined$diff)
+    mae_spi = mean(joined$diff_spi)
+    mae_cdf = mean(joined$diff_cdf)
+    
     #compute parameters of probability dist given the limited sample
     params = gamma_fit_spi(temp_data$data, 'params')
     #populate the export dataframes
-    export_non_stationary_df_mae[i_n_samples, i_n_simulations] = mae
+    export_non_stationary_df_mae_spi[i_n_samples, i_n_simulations] = mae_spi
+    export_non_stationary_df_mae_cdf[i_n_samples, i_n_simulations] = mae_cdf
     if(is.na(params) == T){
       export_non_stationary_df_shape[i_n_samples, i_n_simulations] = NA
       export_non_stationary_df_rate[i_n_samples, i_n_simulations] = NA
@@ -308,21 +315,34 @@ for(i_n_simulations in 1:n_simulation){
   }
 }
 
-summary_non_stationary_mae = summarize_fun(export_non_stationary_df_mae)
+summary_non_stationary_mae_spi = summarize_fun(export_non_stationary_df_mae_spi)
+summary_non_stationary_mae_cdf = summarize_fun(export_non_stationary_df_mae_cdf)
 summary_non_stationary_rate = summarize_fun(export_non_stationary_df_rate)
 summary_non_stationary_shape = summarize_fun(export_non_stationary_df_shape)
 
 #plot the results
-plot_mae = ggplot(data = summary_non_stationary_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
+plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'red', alpha = .20)+
   geom_line(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'Mean Absolute Error\n(Contempary - Historical)')+
+  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Mean Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))
 
-plot_mae
+plot_mae_spi
+
+#plot the results
+plot_mae_cdf = ggplot(data = summary_non_stationary_mae_cdf, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
+  geom_ribbon(data = export_df_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'red', alpha = .20)+
+  geom_line(data = export_df_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
+  geom_ribbon(fill = 'grey70')+
+  geom_line()+
+  theme_bw(base_size = 16)+
+  labs(x = 'Number of Observations in "Climatology"', y = 'CDF Mean Absolute Error')+
+  theme(plot.title = element_text(hjust = 0.5))
+
+plot_mae_cdf
 
 plot_rate = ggplot(data = summary_non_stationary_rate, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -344,7 +364,15 @@ plot_shape = ggplot(data = summary_non_stationary_shape, aes(x = n_obs, y = medi
   #geom_hline(yintercept=40, linetype="dashed", color = "red")
 
 #combine to single plot
-plot_final = cowplot::plot_grid(plot_rate, plot_shape, plot_mae, nrow = 3)
+plot_final = cowplot::plot_grid(plot_rate, plot_shape, plot_mae_cdf, plot_mae_spi,
+                                nrow = 2, ncol = 2, align = 'hv')
+title = ggdraw() + 
+  draw_label("Non-Stationary Monte Carlo Simulation (1000 iterations)", fontface = 'bold',x = 0,hjust = 0,size = 20) +
+  theme(plot.margin = margin(0, 0, 0, 300))
+
+final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
+
+final
 #save
 ggsave(plot_final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 6, height = 8, units = 'in')
 #fin stationary dist
@@ -359,16 +387,18 @@ shape = c(40,41,42)
 rate = c(0.5,1,2)
 
 #using coga calculate the convoluted distrobution
-pcoga(1:200, shape=shape, rate=rate) %>% plot
+pcoga(1:200, shape=shape, rate=rate) %>% plot(1:200,.)
+pcoga(1:200, shape=shape, rate=rate) %>% points(1:200/3,., col = 'orange')
+
 
 #plot each independent function
 for(i in 1:3){
   #compute the dist emulating prob dist fitting
   if(i == 1){
-    data_new = rgamma(100, shape[i], rate[i])
+    data_new = rgamma(10000, shape[i], rate[i])
   }
   if(i!=1){
-    data_new = append(data_new, rgamma(100, shape[i], rate[i]))
+    data_new = append(data_new, rgamma(10000, shape[i], rate[i]))
   }
   if(i == 3){
     points(data_new, gamma_fit_spi(data_new, 'CDF'), col = 'blue')
