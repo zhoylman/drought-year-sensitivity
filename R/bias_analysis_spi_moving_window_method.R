@@ -141,7 +141,8 @@ daily_spi = function(data, time_scale, index_of_interest){
                              spi_contemporary = NA,
                              shape_contemporary = NA,
                              rate_contemporary = NA,
-                             n_contemporary = NA)
+                             n_contemporary = NA) %>%
+        `rownames<-`(1)
     }
     
     if(is.na(params_contempary) == F & is.na(params_historical) == F){
@@ -162,7 +163,8 @@ daily_spi = function(data, time_scale, index_of_interest){
                              shape_contemporary = params_contempary$para[1],
                              rate_contemporary = 1/params_contempary$para[2],
                              #report nymber of years in the SPI calculation
-                             n_contemporary = length(contempary_data$sum))
+                             n_contemporary = length(contempary_data$sum))%>%
+        `rownames<-`(1)
     }
     
     #basic error handling. generally for if a gamma fit cannot be obtained
@@ -177,7 +179,8 @@ daily_spi = function(data, time_scale, index_of_interest){
                            spi_contemporary = NA,
                            shape_contemporary = NA,
                            rate_contemporary = NA,
-                           n_contemporary = NA)
+                           n_contemporary = NA)%>%
+      `rownames<-`(1)
   })
   
   return(output.df)
@@ -196,7 +199,7 @@ registerDoParallel(cl)
 
 #time parallel run
 tictoc::tic()
-#process all data in parralel (30 cores ~ 2.5 hrs), parallel processing by station
+#process all data in parralel (31 cores ~ 2.5 hrs), parallel processing by station
 spi_comparison = foreach(s = 1:length(valid_stations$id),
                          .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                                                         'lmomco', 'sf')) %dopar% {
@@ -261,9 +264,11 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
             return(export)
           })
         #merge (rbind) the results and order them by time # bind_rows - dplyr
-        spi_merged = data.table::rbindlist(temp) %>%
+        spi_merged = temp %>%
+          bind_rows() %>%
           .[order(.$time),] %>% 
-          as_tibble()
+          as_tibble() %>%
+          filter_all(any_vars(!is.na(.)))
 
       },
       #basic error handling
