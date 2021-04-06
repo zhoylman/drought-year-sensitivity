@@ -1,4 +1,12 @@
-gamma_fit_spi = function(x, export_opts = 'SPI') {
+#function to fit a gamma distrobuion to a vector of data
+#export options (export_opts) allows the user to return 
+#SPI valules if export_opts = 'SPI', CDF values if export_opts = 'CDF'
+#or the gamma distrobution paramters if export_opts = 'params'.
+#the function also allows the user to return either the latest
+#CDF or SPI values when return_latest = T. when return_latest = F
+#the entire SPI or CDF vector is returned. 
+
+gamma_fit_spi = function(x, export_opts = 'SPI', return_latest = T) {
   #load the package needed for these computations
   library(lmomco)
   #first try gamma
@@ -20,15 +28,29 @@ gamma_fit_spi = function(x, export_opts = 'SPI') {
       fit.cdf = cdfgam(x, fit.gam)
       #compute spi
       spi = qnorm(fit.cdf, mean = 0, sd = 1)
-      if(export_opts == 'CDF'){
-        return(fit.cdf[length(fit.cdf)]) 
+      if(return_latest == T){
+        if(export_opts == 'CDF'){
+          return(fit.cdf[length(fit.cdf)]) 
+        }
+        if(export_opts == 'params'){
+          return(fit.gam) 
+        }
+        if(export_opts == 'SPI'){
+          return(spi[length(spi)]) 
+        }
       }
-      if(export_opts == 'params'){
-        return(fit.gam) 
+      if(return_latest == F){
+        if(export_opts == 'CDF'){
+          return(fit.cdf) 
+        }
+        if(export_opts == 'params'){
+          return(fit.gam) 
+        }
+        if(export_opts == 'SPI'){
+          return(spi) 
+        }
       }
-      if(export_opts == 'SPI'){
-        return(spi[length(spi)]) 
-      }
+      
     },
     #else return NA
     error=function(cond) {
