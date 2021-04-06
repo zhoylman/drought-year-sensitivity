@@ -4,7 +4,7 @@
 #or the gamma distrobution paramters if export_opts = 'params'.
 #the function also allows the user to return either the latest
 #CDF or SPI values when return_latest = T. when return_latest = F
-#the entire SPI or CDF vector is returned. Default is to return latest.
+#the entire SPI or CDF vector is returned. Default is to return latest. 
 
 gamma_fit_spi = function(x, export_opts = 'SPI', return_latest = T) {
   #load the package needed for these computations
