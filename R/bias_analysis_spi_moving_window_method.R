@@ -44,7 +44,7 @@ states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
 # function to compute SPI
 source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
 
-# wrapper function for spi_fun that processes precip data and 
+# wrapper function for gamma_fit_spi that processes precip data and 
 # computes spi for different time periods. The pricipal purpose 
 # of this function is to properly 
 daily_spi = function(data, time_scale, index_of_interest){ 
@@ -146,7 +146,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     
     if(is.na(params_contempary) == F & is.na(params_historical) == F){
       #define output dataframe and conduct the SPI calculation. SPI is computed using the 
-      #afor-defined spi_fun
+      #afor-defined gamma_fit_spi
       output.df = data.frame(time = date_time,
                              #compute spi using l-moments and the gamma distrobution
                              #for the historical time period (longest period of record)
@@ -166,7 +166,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     }
     
     #basic error handling. generally for if a gamma fit cannot be obtained
-    #there is additional error handling in the spi_fun above
+    #there is additional error handling in the gamma_fit_spi above
   }, error=function(cond) {
     #if there is an error output an empty but equivelent dataframe (place holder)
     output.df = data.frame(time = NA,
