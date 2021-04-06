@@ -4,7 +4,6 @@
 library(tidyverse)
 library(lmomco)
 library(cowplot)
-library(coga)
 
 #source functions to compute probabilistic CDF and probabilistic parameters
 source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
@@ -48,17 +47,21 @@ for(i_n_simulations in 1:n_simulation){
     #compute the true vals with known parameters
     true_vals = cdfgam(temp_data, vec2par(c(shape, 1/rate), 'gam'))
     #compute probabilistic CDF
-    probabilistic_vals = gamma_fit_spi(temp_data, 'CDF')
+    probabilistic_vals = gamma_fit_spi(temp_data, 'CDF', return_latest = F)
     #compute the Mean Absolute Error Prob - True
     mae = mean(abs(probabilistic_vals - true_vals))
-    
+    #if you want to only compute error on latest data use:
+    #mae = mean(abs(probabilistic_vals - true_vals[length(true_vals)]))
+
     #SPI comparison
     true_spi_vals = qnorm(true_vals)
     #comupute probabilistic vals from limited climatology
-    probabilistic_spi_vals = gamma_fit_spi(temp_data, 'SPI')
+    probabilistic_spi_vals = gamma_fit_spi(temp_data, 'SPI', return_latest = F)
     #compute MAE of the spi vals
     mae_spi = mean(abs(probabilistic_spi_vals - true_spi_vals))
-    
+    #if you want to only compute error on latest data use:
+    #mae_spi = mean(abs(probabilistic_spi_vals - true_spi_vals[length(true_spi_vals)]))
+
     #compute parameters of probability dist given the limited sample
     params = gamma_fit_spi(temp_data, 'params')
     

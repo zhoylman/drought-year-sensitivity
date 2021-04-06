@@ -44,7 +44,7 @@ states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
 # function to compute SPI
 source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
 
-# wrapper function for spi_fun that processes precip data and 
+# wrapper function for gamma_fit_spi that processes precip data and 
 # computes spi for different time periods. The pricipal purpose 
 # of this function is to properly 
 daily_spi = function(data, time_scale, index_of_interest){ 
@@ -141,12 +141,13 @@ daily_spi = function(data, time_scale, index_of_interest){
                              spi_contemporary = NA,
                              shape_contemporary = NA,
                              rate_contemporary = NA,
-                             n_contemporary = NA)
+                             n_contemporary = NA) %>%
+        `rownames<-`(1)
     }
     
     if(is.na(params_contempary) == F & is.na(params_historical) == F){
       #define output dataframe and conduct the SPI calculation. SPI is computed using the 
-      #afor-defined spi_fun
+      #afor-defined gamma_fit_spi
       output.df = data.frame(time = date_time,
                              #compute spi using l-moments and the gamma distrobution
                              #for the historical time period (longest period of record)
@@ -162,11 +163,12 @@ daily_spi = function(data, time_scale, index_of_interest){
                              shape_contemporary = params_contempary$para[1],
                              rate_contemporary = 1/params_contempary$para[2],
                              #report nymber of years in the SPI calculation
-                             n_contemporary = length(contempary_data$sum))
+                             n_contemporary = length(contempary_data$sum))%>%
+        `rownames<-`(1)
     }
     
     #basic error handling. generally for if a gamma fit cannot be obtained
-    #there is additional error handling in the spi_fun above
+    #there is additional error handling in the gamma_fit_spi above
   }, error=function(cond) {
     #if there is an error output an empty but equivelent dataframe (place holder)
     output.df = data.frame(time = NA,
@@ -177,7 +179,8 @@ daily_spi = function(data, time_scale, index_of_interest){
                            spi_contemporary = NA,
                            shape_contemporary = NA,
                            rate_contemporary = NA,
-                           n_contemporary = NA)
+                           n_contemporary = NA)%>%
+      `rownames<-`(1)
   })
   
   return(output.df)
@@ -196,7 +199,7 @@ registerDoParallel(cl)
 
 #time parallel run
 tictoc::tic()
-#process all data in parralel (30 cores ~ 2.5 hrs), parallel processing by station
+#process all data in parralel (31 cores ~ 2.5 hrs), parallel processing by station
 spi_comparison = foreach(s = 1:length(valid_stations$id),
                          .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                                                         'lmomco', 'sf')) %dopar% {
@@ -261,9 +264,11 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
             return(export)
           })
         #merge (rbind) the results and order them by time # bind_rows - dplyr
-        spi_merged = data.table::rbindlist(temp) %>%
+        spi_merged = temp %>%
+          bind_rows() %>%
           .[order(.$time),] %>% 
-          as_tibble()
+          as_tibble() %>%
+          filter_all(any_vars(!is.na(.)))
 
       },
       #basic error handling
