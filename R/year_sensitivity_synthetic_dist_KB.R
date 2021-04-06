@@ -3,17 +3,104 @@
 # known distrobtion
 library(tidyverse)
 library(lmomco)
-library(cowplot)
-library(coga)
+library(magrittr)
 
 #source functions to compute probabilistic CDF and probabilistic parameters
-source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
+source('R/gamma_fit_spi.R')
+
+# Plan: 1000 replicates
+# - 100 years, stationary data
+# - 100 years, evolving alpha
+# - 100 years, evolving beta
+# - 100 years, co-evolution
+# Assumptions:
+# - No autocorrelation
+
+calc_theoretical_spi <- 
+  Vectorize(
+    function(value, alpha, beta){
+      qnorm(cdfgam(value, vec2par(c(alpha, beta), 'gam')))
+    }
+  )
+
+calc_retrospective_spi <- 
+    function(x){
+      x %>%
+        magrittr::set_names(1:length(x)) %>%
+        purrr::imap_dbl(~gamma_fit_spi(x[1:.y], 
+                                       export_opts = 'SPI',
+                                       return_latest = T))
+    }
+
+calc_climatological_spi <- 
+  function(x){
+    x %>%
+      gamma_fit_spi(export_opts = 'SPI',
+                                     return_latest = F)
+  }
+
+test <-
+  list(
+    Stationary = 
+      1:99 %>%
+      purrr::map_dfr(
+        ~tibble::tibble(Run = .x,
+                        Timestep = 1:100,
+                        Value = rgamma(n = 100, 
+                                       shape = 40,
+                                       rate = 0.7),
+                        alpha = 40,
+                        beta = 1/0.7)
+      ),
+    `Changing Alpha` = 
+      1:99 %>%
+      purrr::map_dfr(
+        ~tibble::tibble(Run = .x,
+                        Timestep = 1:100,
+                        Value = rgamma(n = 100, 
+                                       shape = 40 + ((1:100) - 1),
+                                       rate = 0.7),
+                        alpha = 40 + (1:100),
+                        beta = 1/0.7)
+      )
+  ) %>%
+  dplyr::bind_rows(.id = "Run Type") %>%
+  dplyr::group_by(`Run Type`, Run) %>%
+  dplyr::mutate(`Actual SPI` = calc_theoretical_spi(value = Value, 
+                                                    alpha = alpha, 
+                                                    beta = beta),
+                `Retrospective SPI` = calc_retrospective_spi(Value),
+                `Climatological SPI` = calc_climatological_spi(Value)) %>%
+  dplyr::ungroup()
+
+
+test %>%
+  tidyr::pivot_longer(`Retrospective SPI`:`Climatological SPI`, names_to = "Empirical SPI Type",
+                      values_to = "Empirical SPI") %>%
+  dplyr::group_by(`Run Type`,
+                  Timestep,
+                  `Empirical SPI Type`) %>%
+  # dplyr::mutate(Error = abs(`Empirical SPI` - `Actual SPI` )) %>%
+  dplyr::summarise(Error = (`Empirical SPI` - `Actual SPI`) %>%
+                     abs() %>%
+                     mean(na.rm = TRUE)) %>%
+  ggplot(aes(x = Timestep,
+             y = Error)) +
+  # geom_smooth() +
+  geom_line() +
+  facet_grid(`Run Type` ~ `Empirical SPI Type`)
+  
+  
+
+
+
+
 
 #######################################################################
-####################### STATIONARY DISTROBUTION #######################
+####################### STATIONARY DISTRIBUTION #######################
 #######################################################################
 
-#define proabaility distrobution paramters
+#define probability distribution parameters
 shape = 40 #alpha
 rate = 0.7 #beta = 1/rate
 
@@ -118,7 +205,7 @@ plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, y
                              label = paste0(summary_mae[90,]$median %>% round(., 2), ' ± ', (summary_mae[90,]$upper - summary_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
-  
+
 plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
   geom_line()+
@@ -157,7 +244,7 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
                                             (summary_rate[30,]$upper - summary_rate[30,]$lower) %>% round(., 2))), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summary_rate[60,]$median + 0.75, 
                              label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
-                                             (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 2))), hjust = 0)+
+                                            (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 2))), hjust = 0)+
   geom_text(data = NULL, aes(x = 88, y = summary_rate[90,]$median + .28, 
                              label = paste0(summary_rate[90,]$median %>% round(., 2), ' ± ', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))
@@ -249,7 +336,7 @@ for(i_n_simulations in 1:n_simulation){
     temp_data = data_non_stationary[length(data_non_stationary$data):(length(data_non_stationary$data)-(i_n_samples-1)),] %>%
       mutate(contemporary_vals_spi = gamma_fit_spi(data, 'SPI'),
              contemporary_vals_cdf = gamma_fit_spi(data, 'CDF'))
-
+    
     #here we will simulate the assumptions of Wu and Guttman
     historical_values = data_non_stationary %>%
       mutate(historical_values_spi = gamma_fit_spi(data, 'SPI'),
@@ -315,8 +402,8 @@ plot_rate = ggplot(data = summary_non_stationary_rate, aes(x = n_obs, y = median
   labs(x = NULL, y = 'Rate Parameter')+
   ggtitle('Monte Carlo Simulation (1000 simulations)')+
   theme(plot.title = element_text(hjust = 0.5))
-  #geom_text(data = NULL, aes(x = 80, y = 5, label = 'True Rate Parameter = 0.7'))+
-  #geom_hline(yintercept=0.7, linetype="dashed", color = "red")
+#geom_text(data = NULL, aes(x = 80, y = 5, label = 'True Rate Parameter = 0.7'))+
+#geom_hline(yintercept=0.7, linetype="dashed", color = "red")
 
 plot_shape = ggplot(data = summary_non_stationary_shape, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -324,8 +411,8 @@ plot_shape = ggplot(data = summary_non_stationary_shape, aes(x = n_obs, y = medi
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Shape Parameter')+
   theme(plot.title = element_text(hjust = 0.5))
-  #geom_text(data = NULL, aes(x = 80, y = 280, label = 'True Shape Parameter = 40'))+
-  #geom_hline(yintercept=40, linetype="dashed", color = "red")
+#geom_text(data = NULL, aes(x = 80, y = 280, label = 'True Shape Parameter = 40'))+
+#geom_hline(yintercept=40, linetype="dashed", color = "red")
 
 #combine to single plot
 plot_final = cowplot::plot_grid(plot_rate, plot_shape, plot_mae_cdf, plot_mae_spi,
