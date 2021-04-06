@@ -25,7 +25,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -42,33 +42,7 @@ states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
   st_geometry()
 
 # function to compute SPI
-spi_fun = function(x) {
-  #first try gamma
-  tryCatch(
-    {
-      x = as.numeric(x)
-      #if precip is 0, replace it with 0.01mm Really Dry
-      if(any(x == 0, na.rm = T)){
-        index = which(x == 0)
-        x[index] = 0.01
-      }
-      #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
-      pwm = pwm.ub(x)
-      #Probability-Weighted Moments to L-moments
-      lmoments_x = pwm2lmom(pwm)
-      #fit gamma
-      fit.gam = pargam(lmoments_x)
-      #compute probabilistic cdf 
-      fit.cdf = cdfgam(x, fit.gam)
-      #compute standard normal equivelant
-      standard_norm = qnorm(fit.cdf, mean = 0, sd = 1)
-      return(standard_norm[length(standard_norm)]) 
-    },
-    #else return NA
-    error=function(cond) {
-      return(NA)
-    })
-}
+source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
 
 # wrapper function for spi_fun that processes precip data and 
 # computes spi for different time periods. The pricipal purpose 
@@ -153,27 +127,56 @@ daily_spi = function(data, time_scale, index_of_interest){
     contempary_data = data_time_filter %>%
       #this is computed for the most current 30 year time period
       filter(year > max_year - 29)
+    
+    #store params
+    params_contempary = gamma_fit_spi(contempary_data$sum, 'params')
+    params_historical = gamma_fit_spi(data_time_filter$sum, 'params')
   
-    #define output dataframe and conduct the SPI calculation. SPI is computed using the 
-    #afor-defined spi_fun
-    output.df = data.frame(time = date_time,
-                           #compute spi using l-moments and the gamma distrobution
-                           #for the historical time period (longest period of record)
-                           spi_historical = spi_fun(data_time_filter$sum),
-                           #report the number of years in this SPI calculation
-                           n_historical = length(data_time_filter$sum),
-                           #compute SPI using the most current 30 years of data
-                           spi_contemporary = spi_fun(contempary_data$sum),
-                           #report nymber of years in the SPI calculation
-                           n_contemporary = length(contempary_data$sum))
+    if(is.na(params_contempary) == T | is.na(params_historical) == T){
+      output.df = data.frame(time = NA,
+                             spi_historical = NA,
+                             shape_historical = NA,
+                             rate_historical = NA,
+                             n_historical = NA,
+                             spi_contemporary = NA,
+                             shape_contemporary = NA,
+                             rate_contemporary = NA,
+                             n_contemporary = NA)
+    }
+    
+    if(is.na(params_contempary) == F & is.na(params_historical) == F){
+      #define output dataframe and conduct the SPI calculation. SPI is computed using the 
+      #afor-defined spi_fun
+      output.df = data.frame(time = date_time,
+                             #compute spi using l-moments and the gamma distrobution
+                             #for the historical time period (longest period of record)
+                             spi_historical = gamma_fit_spi(data_time_filter$sum, 'SPI'),
+                             #store parameters
+                             shape_historical = params_historical$para[1],
+                             rate_historical = 1/params_historical$para[2],
+                             #report the number of years in this SPI calculation
+                             n_historical = length(data_time_filter$sum),
+                             #compute SPI using the most current 30 years of data
+                             spi_contemporary = gamma_fit_spi(contempary_data$sum, 'SPI'),
+                             #store parameters
+                             shape_contemporary = params_contempary$para[1],
+                             rate_contemporary = 1/params_contempary$para[2],
+                             #report nymber of years in the SPI calculation
+                             n_contemporary = length(contempary_data$sum))
+    }
+    
     #basic error handling. generally for if a gamma fit cannot be obtained
     #there is additional error handling in the spi_fun above
   }, error=function(cond) {
     #if there is an error output an empty but equivelent dataframe (place holder)
     output.df = data.frame(time = NA,
                            spi_historical = NA,
+                           shape_historical = NA,
+                           rate_historical = NA,
                            n_historical = NA,
                            spi_contemporary = NA,
+                           shape_contemporary = NA,
+                           rate_contemporary = NA,
                            n_contemporary = NA)
   })
   
@@ -251,7 +254,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
         #define the indicies of interest, June - August
         indicies_of_interest = which(data_filtered$month %in% c(6,7,8) & data_filtered$year > 1990)
 
-        # map teh spi calculation through the indicies of interest 
+        # map the spi calculation through the indicies of interest 
         temp = indicies_of_interest %>%
           purrr::map(function(i){
             export = daily_spi(data_filtered, time_scale[[time_scale_id]], i)
@@ -280,8 +283,10 @@ tictoc::toc()
 stopCluster(cl)
 
 #save out big list
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+
+
+spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
