@@ -380,3 +380,122 @@ plot_mae_spi
 
 ggsave(plot_mae_spi, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 7, height = 7*.8, units = 'in')
 
+
+#######################################################################
+########### NON-STATIONARY DISTROBUTION Multiple Sites ################
+#######################################################################
+set.seed(100)
+#non-stationary distrobution
+#define probability distrobution with shifting parameters (10 decade chunks)
+sites = list.files('/home/zhoylman/drought-year-sensitivity/data/params') %>%
+  substr(., start = 13, stop = 23)
+
+time_scales = list.files('/home/zhoylman/drought-year-sensitivity/data/params') %>%
+  substr(., start = 25, stop = 26)
+
+data = list.files('/home/zhoylman/drought-year-sensitivity/data/params', full.names = T) %>%
+  lapply(., readRDS)
+
+n_simulation = 1000
+
+#rev up a cluster for parallel computing
+cl = makeCluster(detectCores()-2)
+#register the cluster for doPar
+registerDoParallel(cl)
+
+out_non_stationary = list()
+
+out_non_stationary = foreach(s = 1:length(sites), .packages = c('lmomco', 'tidyverse')) %dopar% {
+  n_samples = seq(1,length(data[[s]]$time),1)
+  n_ = length(data[[s]]$time)
+  
+  input_matrix = data.frame(x = n_samples, shape = data[[s]]$Shape, rate = data[[s]]$Rate)
+
+  #set up export data frames
+  export_non_stationary_df_mae_spi = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
+
+  #non-stationary data
+  for(i_n_simulations in 1:n_simulation){
+    print(i_n_simulations)
+    #randomly generate the distrobtuion each simulation
+    data_non_stationary = input_matrix %>%
+      mutate(data =  rgamma(x, shape, rate)) %>%
+      mutate(time = seq(1:n_))
+    
+    for(i_n_samples in n_samples){
+      #pull data from the end of the distrobution backwards
+      #simulates what we would do in the case of a moving window analysis
+      #to test parameter stability 
+      temp_data = data_non_stationary[length(data_non_stationary$data):(length(data_non_stationary$data)-(i_n_samples-1)),]
+      
+      recent_slice = temp_data[1,]
+      true_vals = cdfgam(recent_slice$data, vec2par(c(recent_slice$shape, 1/recent_slice$rate), 'gam'))
+      
+      #SPI comparison
+      true_spi_vals = qnorm(true_vals)
+      #comupute probabilistic vals from limited climatology
+      probabilistic_spi_vals = gamma_fit_spi(temp_data$data %>% rev, 'SPI', return_latest = T)
+      #compute MAE of the spi vals
+      #mae_spi = mean(abs(probabilistic_spi_vals - true_spi_vals))
+      #if you want to only compute error on latest data use:
+      mae_spi = abs(probabilistic_spi_vals - true_spi_vals[length(true_spi_vals)])
+      
+      #populate the export dataframes
+      export_non_stationary_df_mae_spi[i_n_samples, i_n_simulations] = mae_spi
+    }
+  }
+  export = export_non_stationary_df_mae_spi %>%
+    mutate(n_obs = n_samples,
+           site = paste0(sites[s]),
+           time_scale = time_scales[s])
+  export
+}
+
+stopCluster(cl)
+
+summaries_non_stationary = out_non_stationary %>%
+  bind_rows() %>%
+  tidyr::pivot_longer(cols = -c(n_obs, site, time_scale)) %>%
+  dplyr::select(-name) %>%
+  group_by(n_obs) %>%
+  summarise(median = median(value, na.rm = T),
+            upper =  quantile(value, 0.75, na.rm = T),
+            lower = quantile(value, 0.25, na.rm = T)) %>%
+  filter(n_obs <= 100)
+
+summaries_non_stationary_sites = out_non_stationary %>%
+  bind_rows() %>%
+  mutate(time_scale = paste0(time_scale, ' Days')) %>%
+  tidyr::pivot_longer(cols = -c(n_obs, site, time_scale)) %>%
+  dplyr::select(-name) %>%
+  group_by(n_obs, site, time_scale) %>%
+  summarise(median = median(value, na.rm = T),
+            upper =  quantile(value, 0.75, na.rm = T),
+            lower = quantile(value, 0.25, na.rm = T)) %>%
+  filter(n_obs <= 100) %>%
+  rename(Site = site, Timescale = time_scale)
+
+#saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
+
+col = colorRampPalette(c('red', 'blue', 'green'))
+
+
+param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Site))+
+  geom_ribbon(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = NULL), fill = 'grey70')+
+  geom_line(size = 1)+
+  #geom_line(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = 'All', linetype = 'All'))+
+  theme_bw(base_size = 20)+
+  scale_colour_manual(values = RColorBrewer::brewer.pal(10, 'Paired'))+
+  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  #ggtitle('Non-Stationary Distribution\n(88 Parameter Pairs, 1000 Iterations)')+
+  scale_x_continuous(breaks = c(0,30,60,90))+
+  theme(legend.position="bottom", legend.box = "vertical")+
+  facet_wrap(~Timescale)+ 
+  ylim(0,1)+
+  theme(plot.title = element_text(hjust = 0.5),
+        strip.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA))
+
+ggsave(param_shift, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary_multiple_sites.png',
+       width = 13, height = 6, units = 'in')
