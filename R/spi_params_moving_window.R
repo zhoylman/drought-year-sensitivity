@@ -196,6 +196,8 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
 
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
+plotting = F
+
 selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770'))
 #selected_sites = which(valid_stations$state == 'MD')
 #rev up a cluster for parallel computing
@@ -205,7 +207,7 @@ registerDoParallel(cl)
 
 tic()
 
-foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
+foreach(s = 1:length(valid_stations$id), .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                'lmomco', 'sf')) %dopar% {
   #pull in raw GHCN data
   data_raw = ghcnd_search(
@@ -280,89 +282,92 @@ foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'ma
     rename(Shape = shape, Rate = rate, `Mean Precipitation (mm)` = mean_p,
            `CV Precipitation (mm)` = cv_p)
   
-  if(s == 1770){
-    saveRDS(params_merged, '/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS')
+  if(length(params_merged$time) >= 88){
+    saveRDS(params_merged, paste0('/home/zhoylman/drought-year-sensitivity/data/params/param_shift_'
+                                  , valid_stations$id[s], '_',time_scale[[time_scale_id]], '_days.RDS'))
   }
   
-  if(length(params_merged$time) >= 60){
-    
-    synthetic_precip = seq(1, params_merged$`Mean Precipitation (mm)` %>% max *3, length.out = 1000)
-    
-    out = data.frame(matrix(ncol = length(params_merged$year), nrow = length(synthetic_precip)))
-    
-    for(i in 1:length(params_merged$year)){
-      shape = params_merged$Shape[i]
-      rate = 1/params_merged$Rate[i]
-      temp_params = c(shape, rate) %>% as.numeric() %>% vec2par(., type="gam")
-      out[,i] = pdfgam(synthetic_precip, temp_params['para'])
-    }
-    colnames(out) = params_merged$year
-    out$precip = synthetic_precip
-    
-    out_tibble = out %>%
-      gather(key= 'key', value = 'value',-precip)
-    
-    col = colorRampPalette(c("#8b0000", "#ff0000", "#ffff00", '#00FF00',  '#5aede1',"#0000ff",'#9932CC', '#4B0082'))
-    
-    plot_dist = ggplot()+
-      geom_line(data = out_tibble, aes(x = precip, y = value, color = key %>% as.numeric), alpha = 0.5)+
-      scale_colour_gradientn(colours = col(100))+
-      theme_bw(base_size = 16)+
-      geom_line(data = NULL, aes(x = synthetic_precip, y = pdfgam(synthetic_precip, 
-                                                                  vec2par(c(time_integrated$shape, 
-                                                                          1/time_integrated$rate), type = 'gam'))), color = 'black', size = 1.5)+
-      geom_line(data = NULL, aes(x = synthetic_precip, y = pdfgam(synthetic_precip, 
-                                                                  vec2par(c(time_integrated$shape, 
-                                                                            1/time_integrated$rate), type = 'gam'))), linetype = 'dashed',
-                color = 'white', size = 1)+
-      labs(x = 'Accumulated Precipitation', y = 'PDF')+
-      theme(legend.position = 'bottom',
-            legend.title = element_blank(),
-            legend.key.width=unit(2,"cm"),
-            plot.title = element_text(hjust = 0.5))
-    
-    plot_dist
-    
-    long_tibble = params_merged %>% 
-      select(-n) %>%
-      pivot_longer(cols = -c(year,time)) 
-    
-    long_tibble$name = factor(long_tibble$name, levels = (c('Rate','Shape',
-                                                            "Mean Precipitation (mm)",
-                                                            "CV Precipitation (mm)")),ordered = TRUE)
-    
-    time_integrated_long = time_integrated %>%
-      select(-n) %>%
-      rename(Rate = rate, Shape = shape, `CV Precipitation (mm)` = cv_p,
-             `Mean Precipitation (mm)` = mean_p) %>%
-      pivot_longer(cols = -c(time))
-    
-    time_integrated_long$name = factor(time_integrated_long$name, levels = (c('Rate','Shape',
-                                                            "Mean Precipitation (mm)",
-                                                            "CV Precipitation (mm)")),ordered = TRUE)
-    
-    plot_param = ggplot(long_tibble, aes(x = year, y = value))+
-      geom_smooth(method = 'loess')+
-      geom_point()+
-      geom_hline(data = time_integrated_long, aes(yintercept = value))+
-      facet_wrap(~name, scales = 'free')+
-      theme_bw(base_size = 14)+
-      labs(x = NULL, y = 'Parameter Value')+
-      theme(plot.title = element_text(hjust = 0.5),
-            strip.background = element_blank(),
-            panel.border = element_rect(colour = "black", fill = NA))
-    
-    plot_grid = ggpubr::ggarrange(plot_param, plot_dist)
-    
-    final = ggpubr::annotate_figure(plot_grid,
-                                    top = ggpubr::text_grob(paste0(time_scale[[time_scale_id]], ' Day Timescale for August 1\nGHCN Site #: ',valid_stations$id[s], ' (', valid_stations$name[s], ', '
-                                                                   , valid_stations$state[s], ')'),
-                                                            color = "black",
-                                                            face = "bold", size = 16))
-    
-    ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/site_',
-                                valid_stations$id[s],'_',time_scale[[time_scale_id]],'_day','.png'),
-           width = 15, height = 8, units = 'in', dpi = 300)
+  if(plotting == T){
+    if(length(params_merged$time) >= 60){
+      
+      synthetic_precip = seq(1, params_merged$`Mean Precipitation (mm)` %>% max *3, length.out = 1000)
+      
+      out = data.frame(matrix(ncol = length(params_merged$year), nrow = length(synthetic_precip)))
+      
+      for(i in 1:length(params_merged$year)){
+        shape = params_merged$Shape[i]
+        rate = 1/params_merged$Rate[i]
+        temp_params = c(shape, rate) %>% as.numeric() %>% vec2par(., type="gam")
+        out[,i] = pdfgam(synthetic_precip, temp_params['para'])
+      }
+      colnames(out) = params_merged$year
+      out$precip = synthetic_precip
+      
+      out_tibble = out %>%
+        gather(key= 'key', value = 'value',-precip)
+      
+      col = colorRampPalette(c("#8b0000", "#ff0000", "#ffff00", '#00FF00',  '#5aede1',"#0000ff",'#9932CC', '#4B0082'))
+      
+      plot_dist = ggplot()+
+        geom_line(data = out_tibble, aes(x = precip, y = value, color = key %>% as.numeric), alpha = 0.5)+
+        scale_colour_gradientn(colours = col(100))+
+        theme_bw(base_size = 16)+
+        geom_line(data = NULL, aes(x = synthetic_precip, y = pdfgam(synthetic_precip, 
+                                                                    vec2par(c(time_integrated$shape, 
+                                                                              1/time_integrated$rate), type = 'gam'))), color = 'black', size = 1.5)+
+        geom_line(data = NULL, aes(x = synthetic_precip, y = pdfgam(synthetic_precip, 
+                                                                    vec2par(c(time_integrated$shape, 
+                                                                              1/time_integrated$rate), type = 'gam'))), linetype = 'dashed',
+                  color = 'white', size = 1)+
+        labs(x = 'Accumulated Precipitation', y = 'PDF')+
+        theme(legend.position = 'bottom',
+              legend.title = element_blank(),
+              legend.key.width=unit(2,"cm"),
+              plot.title = element_text(hjust = 0.5))
+      
+      plot_dist
+      
+      long_tibble = params_merged %>% 
+        select(-n) %>%
+        pivot_longer(cols = -c(year,time)) 
+      
+      long_tibble$name = factor(long_tibble$name, levels = (c('Rate','Shape',
+                                                              "Mean Precipitation (mm)",
+                                                              "CV Precipitation (mm)")),ordered = TRUE)
+      
+      time_integrated_long = time_integrated %>%
+        select(-n) %>%
+        rename(Rate = rate, Shape = shape, `CV Precipitation (mm)` = cv_p,
+               `Mean Precipitation (mm)` = mean_p) %>%
+        pivot_longer(cols = -c(time))
+      
+      time_integrated_long$name = factor(time_integrated_long$name, levels = (c('Rate','Shape',
+                                                                                "Mean Precipitation (mm)",
+                                                                                "CV Precipitation (mm)")),ordered = TRUE)
+      
+      plot_param = ggplot(long_tibble, aes(x = year, y = value))+
+        geom_smooth(method = 'loess')+
+        geom_point()+
+        geom_hline(data = time_integrated_long, aes(yintercept = value))+
+        facet_wrap(~name, scales = 'free')+
+        theme_bw(base_size = 14)+
+        labs(x = NULL, y = 'Parameter Value')+
+        theme(plot.title = element_text(hjust = 0.5),
+              strip.background = element_blank(),
+              panel.border = element_rect(colour = "black", fill = NA))
+      
+      plot_grid = ggpubr::ggarrange(plot_param, plot_dist)
+      
+      final = ggpubr::annotate_figure(plot_grid,
+                                      top = ggpubr::text_grob(paste0(time_scale[[time_scale_id]], ' Day Timescale for August 1\nGHCN Site #: ',valid_stations$id[s], ' (', valid_stations$name[s], ', '
+                                                                     , valid_stations$state[s], ')'),
+                                                              color = "black",
+                                                              face = "bold", size = 16))
+      
+      ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/site_',
+                                  valid_stations$id[s],'_',time_scale[[time_scale_id]],'_day','.png'),
+             width = 15, height = 8, units = 'in', dpi = 300)
+    } 
   }
 }
 
