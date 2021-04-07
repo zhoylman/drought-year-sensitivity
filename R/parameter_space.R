@@ -1,47 +1,82 @@
 library(tidyverse)
 
-time_scale_id = 1
-time_scale = list(30,60,90)
+spi_comparison_30 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30_days.RDS'))
+spi_comparison_60 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_60_days.RDS'))
+spi_comparison_90 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_90_days.RDS'))
 
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+process_data = function(x, time_scale){
+  temp = x %>% 
+    bind_rows() %>%
+    filter( n_contemporary >= 25,
+            n_historical >= 70,
+            shape_contemporary > quantile(shape_contemporary, 0.001),
+            shape_contemporary < quantile(shape_contemporary, 0.999),
+            rate_contemporary > quantile(rate_contemporary, 0.001),
+            rate_contemporary < quantile(rate_contemporary, 0.999),
+            shape_historical > quantile(shape_historical, 0.001),
+            shape_historical < quantile(shape_historical, 0.999),
+            rate_historical > quantile(rate_historical, 0.001),
+            rate_historical < quantile(rate_historical, 0.999)) %>%
+    mutate(`Timescale` = time_scale)
+  return(temp)
+}
 
-full = bind_rows(spi_comparison) %>%
-  filter( n_contemporary >= 25,
-          n_historical >= 70,
-          shape_contemporary > quantile(shape_contemporary, 0.01),
-          shape_contemporary < quantile(shape_contemporary, 0.99),
-          rate_contemporary > quantile(rate_contemporary, 0.01),
-          rate_contemporary < quantile(rate_contemporary, 0.99))
 
-random_index = runif(100000, 1, length(full$time)) %>% as.integer()
+full = bind_rows(process_data(spi_comparison_30, '30 Day'),
+                 process_data(spi_comparison_60, '60 Day'),
+                 process_data(spi_comparison_90, '90 Day'))
 
-data_contemporary = full[random_index, ] %>%
-  select(shape_contemporary, rate_contemporary) %>%
+set.seed(99)
+
+random_index = runif(1000000, 1, length(full$time)) %>% as.integer()
+
+data_contemporary = full[random_index,]%>%
+  select(shape_contemporary, rate_contemporary, Timescale) %>%
   rename(Shape = shape_contemporary, Rate = rate_contemporary) %>%
   mutate(ID = "Contemporary")
 
-data_historical =full[random_index, ] %>%
-  select(shape_historical, rate_historical) %>%
+data_historical =full[random_index,]%>%
+  select(shape_historical, rate_historical, Timescale) %>%
   rename(Shape = shape_historical, Rate = rate_historical) %>%
   mutate(ID = "Historical")
 
 final = bind_rows(data_contemporary, data_historical)
 
-ggplot(final, aes(x = Shape, y = Rate))+
-  geom_bin2d(bins = 100) +
-  scale_fill_continuous(type = "viridis", name = 'Count')+
-  facet_grid(~ID)
+random_montecarlo = final[runif(100,1,length(final$Shape)) %>% as.integer() ,]
+saveRDS(random_montecarlo, '/home/zhoylman/drought-year-sensitivity/data/random_parameters_for_monte_carlo.RDS')
 
-ggplot(final, aes(x = Shape, y = Rate))+
-  stat_density_2d(geom = "polygon", 
-                  aes(fill = as.factor(..level..)),
-                  bins = 10,
-                  alpha = 0.5) +
-  facet_grid(~ID)+
+distrobution_plot = ggplot(final, aes(x = Shape, y = Rate))+
+  geom_density_2d_filled(
+    aes(fill = ..level..),
+    contour_var = "ndensity", # normalize to each QBs total passes
+    breaks = seq(0.1, 1.0, length.out = 10))+ # drop the lowest passes
+  facet_grid(Timescale~ID)+
   scale_fill_viridis_d(guide = F)+
   theme_bw(base_size = 16)+
   labs(x = 'Shape', y = 'Rate')+
   theme(strip.background = element_blank(),
         panel.border = element_rect(colour = "black", fill = NA),
         plot.title = element_text(hjust = 0.5))+
-  ggtitle('Gamma Distrobution Parameter Space (30 Day Timescale)')
+  ggtitle('Gamma Distrobution Parameter Space')+
+  xlim(0,15)+
+  ylim(0.01,0.05)
+
+ggsave(distrobution_plot, file = '/home/zhoylman/drought-year-sensitivity/figs/parameter_space_facets.png', height = 7, width = 7, units = 'in')
+
+all_together = ggplot(final, aes(x = Shape, y = Rate))+
+  geom_density_2d_filled(
+    aes(fill = ..level..),
+    contour_var = "ndensity", # normalize to each QBs total passes
+    breaks = seq(0.1, 1.0, length.out = 10))+ # drop the lowest passes
+  scale_fill_viridis_d(guide = F)+
+  theme_bw(base_size = 16)+
+  labs(x = 'Shape', y = 'Rate')+
+  theme(strip.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill = NA),
+        plot.title = element_text(hjust = 0.5))+
+  ggtitle('Gamma Distrobution Parameter Space')+
+  xlim(0,15)+
+  ylim(0.01,0.05)+
+  geom_point(data = random_montecarlo, aes(x = Shape, y = Rate), color = 'black', fill = 'white', shape = 21)
+
+ggsave(all_together, file = '/home/zhoylman/drought-year-sensitivity/figs/parameter_space_merged.png', height = 7, width = 7, units = 'in')

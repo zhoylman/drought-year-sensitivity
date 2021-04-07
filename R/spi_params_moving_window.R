@@ -16,7 +16,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -279,6 +279,10 @@ foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'ma
     mutate(year = year(time)) %>%
     rename(Shape = shape, Rate = rate, `Mean Precipitation (mm)` = mean_p,
            `CV Precipitation (mm)` = cv_p)
+  
+  if(s == 1770){
+    saveRDS(params_merged, '/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS')
+  }
   
   if(length(params_merged$time) >= 60){
     
