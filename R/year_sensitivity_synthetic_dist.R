@@ -6,6 +6,7 @@ library(lmomco)
 library(cowplot)
 library(foreach)
 library(doParallel)
+library(sf)
 
 #source functions to compute probabilistic CDF and probabilistic parameters
 source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
@@ -476,6 +477,11 @@ summaries_non_stationary = out_non_stationary %>%
             lower = quantile(value, 0.25, na.rm = T)) %>%
   filter(n_obs <= 100)
 
+valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS') %>%
+  select(id, state, name) %>%
+  as_tibble() %>%
+  rename(Site = id)
+
 summaries_non_stationary_sites = out_non_stationary %>%
   bind_rows() %>%
   mutate(time_scale = paste0(time_scale, ' Days')) %>%
@@ -486,10 +492,12 @@ summaries_non_stationary_sites = out_non_stationary %>%
             upper =  quantile(value, 0.75, na.rm = T),
             lower = quantile(value, 0.25, na.rm = T)) %>%
   filter(n_obs <= 100) %>%
-  rename(Site = site, Timescale = time_scale)
+  rename(Site = site, Timescale = time_scale) %>% 
+  left_join(., valid_stations, by = 'Site')
 
-#saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
-
+saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary_sites.RDS')
+saveRDS(summaries_non_stationary, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
+  
 col = colorRampPalette(c('red', 'blue', 'green'))
 
 param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Site))+
