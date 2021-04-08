@@ -112,15 +112,15 @@ plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, y
   labs(x = 'Number of Observations in "Climatology"', y = 'CDF Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_mae[30,]$median), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 30, y = summary_mae[30,]$median, xend = 45, yend = summary_mae[30,]$median + .08), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_mae[30,]$median, xend = 45, yend = summary_mae[30,]$median + .15), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_mae[60,]$median), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 60, y = summary_mae[60,]$median, xend = 70, yend = summary_mae[60,]$median + .05), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_mae[90,]$median  + .02), linetype = 'dashed', color = 'red')+
-  geom_text(data = NULL, aes(x = 46, y = summary_mae[30,]$median + .08,  
+  geom_segment(data = NULL, aes(x = 60, y = summary_mae[60,]$median, xend = 70, yend = summary_mae[60,]$median + .11), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_mae[90,]$median  + .04), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_mae[30,]$median + .15,  
                              label = paste0(summary_mae[30,]$median %>% round(., 2), ' ± ', (summary_mae[30,]$upper - summary_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 71, y = summary_mae[60,]$median + .05, 
+  geom_text(data = NULL, aes(x = 71, y = summary_mae[60,]$median + .11, 
                              label = paste0(summary_mae[60,]$median %>% round(., 2), ' ± ', (summary_mae[60,]$upper - summary_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 88, y = summary_mae[90,]$median + .027, 
+  geom_text(data = NULL, aes(x = 79.5, y = summary_mae[90,]$median + .06, 
                              label = paste0(summary_mae[90,]$median %>% round(., 2), ' ± ', (summary_mae[90,]$upper - summary_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
@@ -132,15 +132,15 @@ plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = 
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_spi_mae[30,]$median), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 30, y = summary_spi_mae[30,]$median, xend = 45, yend = summary_spi_mae[30,]$median + .25), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 30, y = summary_spi_mae[30,]$median, xend = 45, yend = summary_spi_mae[30,]$median + .45), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_spi_mae[60,]$median), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 60, y = summary_spi_mae[60,]$median, xend = 70, yend = summary_spi_mae[60,]$median + .15), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_spi_mae[90,]$median  + .05), linetype = 'dashed', color = 'red')+
-  geom_text(data = NULL, aes(x = 46, y = summary_spi_mae[30,]$median + .25, 
+  geom_segment(data = NULL, aes(x = 60, y = summary_spi_mae[60,]$median, xend = 70, yend = summary_spi_mae[60,]$median + .35), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_spi_mae[90,]$median  + .13), linetype = 'dashed', color = 'red')+
+  geom_text(data = NULL, aes(x = 46, y = summary_spi_mae[30,]$median + .45, 
                              label = paste0(summary_spi_mae[30,]$median %>% round(., 2), ' ± ', (summary_spi_mae[30,]$upper - summary_spi_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 71, y = summary_spi_mae[60,]$median + .15, 
+  geom_text(data = NULL, aes(x = 71, y = summary_spi_mae[60,]$median + .35, 
                              label = paste0(summary_spi_mae[60,]$median %>% round(., 2), ' ± ', (summary_spi_mae[60,]$upper - summary_spi_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 88, y = summary_spi_mae[90,]$median + .08, 
+  geom_text(data = NULL, aes(x = 79.5, y = summary_spi_mae[90,]$median + .18, 
                              label = paste0(summary_spi_mae[90,]$median %>% round(., 2), ' ± ', (summary_spi_mae[90,]$upper - summary_spi_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
@@ -151,7 +151,7 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Rate Parameter')+
   theme(plot.title = element_text(hjust = 0.5))+ 
-  geom_text(data = NULL, aes(x = 50, y = .2, label = paste0('True Rate Parameter = ', rate)), size = 6)+
+  geom_text(data = NULL, aes(x = 50, y = .17, label = paste0('True Rate Parameter = ', rate)), size = 6)+
   geom_hline(yintercept=rate, linetype="dashed", color = "red")+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_rate[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_rate[30,]$median, xend = 45, yend = summary_rate[30,]$median + .075), linetype = 'dashed', color = 'red')+
@@ -161,10 +161,10 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
   geom_text(data = NULL, aes(x = 46, y = summary_rate[30,]$median + .075, 
                              label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
                                             (summary_rate[30,]$upper - summary_rate[30,]$lower) %>% round(., 3))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 71, y = summary_rate[60,]$median + 0.05, 
+  geom_text(data = NULL, aes(x = 71, y = summary_rate[60,]$median + 0.055, 
                              label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
                                              (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 3))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 87, y = summary_rate[90,]$median + .025, 
+  geom_text(data = NULL, aes(x = 79.5, y = summary_rate[90,]$median + .025, 
                              label = paste0(summary_rate[90,]$median %>% round(., 2), ' ± ', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 3))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))
 
@@ -174,7 +174,7 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
   theme_bw(base_size = 16)+
   labs(x = NULL, y = 'Shape Parameter')+
   theme(plot.title = element_text(hjust = 0.5))+ 
-  geom_text(data = NULL, aes(x = 50, y = 15, label = paste0('True Shape Parameter = ', shape)), size = 6)+
+  geom_text(data = NULL, aes(x = 50, y = 12.5, label = paste0('True Shape Parameter = ', shape)), size = 6)+
   geom_hline(yintercept=shape, linetype="dashed", color = "red")+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_shape[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_shape[30,]$median, xend = 45, yend = summary_shape[30,]$median + 5.5), linetype = 'dashed', color = 'red')+
@@ -184,10 +184,10 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
   geom_text(data = NULL, aes(x = 46, y = summary_shape[30,]$median + 5.5, 
                              label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
                                             (summary_shape[30,]$upper - summary_shape[30,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 71, y = summary_shape[60,]$median + 3.5, 
+  geom_text(data = NULL, aes(x = 71, y = summary_shape[60,]$median + 3.8, 
                              label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
                                             (summary_shape[60,]$upper - summary_shape[60,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 87, y = summary_shape[90,]$median + 1.5, 
+  geom_text(data = NULL, aes(x = 79.5, y = summary_shape[90,]$median + 1.5, 
                              label = paste0(summary_shape[90,]$median %>% round(., 2), ' ± ', (summary_shape[90,]$upper - summary_shape[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))
 
@@ -195,14 +195,14 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
 plot_final = cowplot::plot_grid(plot_rate, plot_shape,plot_mae, plot_spi_mae,
                                 nrow = 2, ncol = 2, align = 'hv')
 title = ggdraw() + 
-  draw_label("Stationary Distribution (Single Parameter Pair, 1000 Iterations)", fontface = 'bold',x = 0,hjust = 0,size = 20) +
-  theme(plot.margin = margin(0, 0, 0, 150))
+  draw_label("            Stationary Distribution\n(Single Parameter Pair, 1000 Iterations)",x = 0,hjust = 0,size = 20) +
+  theme(plot.margin = margin(0, 0, 0, 200))
 
 final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
 
 final
 #save
-ggsave(final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo.png', width = 13, height = 9, units = 'in')
+ggsave(final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo.png', width = 10, height = 7, units = 'in')
 #fin stationary dist
 
 #######################################################################
@@ -278,12 +278,12 @@ plot_spi_mae_param_space = ggplot(data = summaries, aes(x = n_obs, y = median, y
   geom_segment(data = NULL, aes(x = 30, y = summaries[30,]$median, xend = 45, yend = summaries[30,]$median + .25), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summaries[60,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = summaries[60,]$median, xend = 70, yend = summaries[60,]$median + .15), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summaries[90,]$median  + .05), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summaries[90,]$median  + .08), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summaries[30,]$median + .25, 
                              label = paste0(summaries[30,]$median %>% round(., 2), ' ± ', (summaries[30,]$upper - summaries[30,]$lower) %>% round(., 2))), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summaries[60,]$median + .15, 
                              label = paste0(summaries[60,]$median %>% round(., 2), ' ± ', (summaries[60,]$upper - summaries[60,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 88, y = summaries[90,]$median + .08, 
+  geom_text(data = NULL, aes(x = 88, y = summaries[90,]$median + .11, 
                              label = paste0(summaries[90,]$median %>% round(., 2), ' ± ', (summaries[90,]$upper - summaries[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()+
@@ -370,7 +370,7 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   theme_bw(base_size = 16)+
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  ggtitle('Non-Stationary Distribution\n(99 Parameter Pairs, 1000 Iterations)')+
+  ggtitle('Non-Stationary Distribution (CLEMSON UNIV, SC)\n(99 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_non_stationary_mae_spi[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_non_stationary_mae_spi[30,]$median, xend = 25, yend = summary_non_stationary_mae_spi[30,]$median + .25), linetype = 'dashed', color = 'red')+
@@ -502,14 +502,12 @@ saveRDS(summaries_non_stationary, '/home/zhoylman/drought-year-sensitivity/data/
 summaries_non_stationary_sites = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_summary_sites.RDS')
 summaries_non_stationary = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
 
-col = colorRampPalette(c('red', 'blue', 'green'))
-
-param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Site))+
+param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Station))+
   geom_ribbon(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = NULL), fill = 'grey70')+
   geom_line(size = 1)+
   #geom_line(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = 'All', linetype = 'All'))+
   theme_bw(base_size = 20)+
-  scale_colour_manual(values = RColorBrewer::brewer.pal(10, 'Paired'))+
+  scale_colour_manual(values = pals::glasbey(10) %>% as.vector(), name = NULL)+
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   #ggtitle('Non-Stationary Distribution\n(88 Parameter Pairs, 1000 Iterations)')+
@@ -519,7 +517,9 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
   ylim(0,1)+
   theme(plot.title = element_text(hjust = 0.5),
         strip.background = element_blank(),
-        panel.border = element_rect(colour = "black", fill = NA))
+        panel.border = element_rect(colour = "black", fill = NA),
+        legend.text=element_text(size=10))+
+  guides(colour=guide_legend(nrow=2,byrow=TRUE))
 
 ggsave(param_shift, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary_multiple_sites.png',
-       width = 13, height = 6, units = 'in')
+       width = 13, height = 6.5, units = 'in', dpi = 300)
