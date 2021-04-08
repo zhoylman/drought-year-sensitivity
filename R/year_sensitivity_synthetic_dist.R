@@ -493,7 +493,8 @@ summaries_non_stationary_sites = out_non_stationary %>%
             lower = quantile(value, 0.25, na.rm = T)) %>%
   filter(n_obs <= 100) %>%
   rename(Site = site, Timescale = time_scale) %>% 
-  left_join(., valid_stations, by = 'Site')
+  left_join(., valid_stations, by = 'Site') %>%
+  mutate(Station = paste0(name, ', ', state))
 
 saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary_sites.RDS')
 saveRDS(summaries_non_stationary, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
