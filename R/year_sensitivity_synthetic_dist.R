@@ -216,7 +216,7 @@ set.seed(98)
 
 #define monte carlo information
 n_samples = seq(1,100,1)
-n_simulation = 100
+n_simulation = 1000
 
 #rev up a cluster for parallel computing
 cl = makeCluster(detectCores()-2)
@@ -258,20 +258,37 @@ out = foreach(i = 1:length(params_space$Shape), .packages = c('lmomco')) %dopar%
 
 stopCluster(cl)
 
+saveRDS(out, '/home/zhoylman/temp/stationary_monte_carlo_100_params.RDS')
+
+for(i in 1:length(out)){
+  out[[i]]$param_pair = i
+}
+
 summaries = lapply(out, function(x){return(x %>% mutate(n_obs = n_samples))}) %>%
   bind_rows() %>%
-  tidyr::pivot_longer(cols = -c(n_obs)) %>%
-  dplyr::select(-name) %>%
+  tidyr::pivot_longer(cols = -c(n_obs, param_pair)) %>%
+  dplyr::select(-c(name, param_pair)) %>%
   group_by(n_obs) %>%
+  summarise(median = median(value, na.rm = T),
+            upper =  quantile(value, 0.75, na.rm = T),
+            lower = quantile(value, 0.25, na.rm = T))
+
+summaries_each = lapply(out, function(x){return(x %>% mutate(n_obs = n_samples))}) %>%
+  bind_rows() %>%
+  tidyr::pivot_longer(cols = -c(n_obs, param_pair)) %>%
+  dplyr::select(-c(name)) %>%
+  group_by(n_obs, param_pair) %>%
   summarise(median = median(value, na.rm = T),
             upper =  quantile(value, 0.75, na.rm = T),
             lower = quantile(value, 0.25, na.rm = T))
   
 
-plot_spi_mae_param_space = ggplot(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
-  geom_ribbon(fill = 'grey70')+
-  geom_line()+
+plot_spi_mae_param_space = ggplot()+
+  geom_ribbon(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'grey70')+
+  geom_line(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   theme_bw(base_size = 16)+
+  geom_line(data = summaries_each, aes(x = n_obs, y = median, colour = as.factor(param_pair)))+
+  scale_colour_discrete(guide = F)+
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summaries[30,]$median), linetype = 'dashed', color = 'red')+
@@ -287,7 +304,7 @@ plot_spi_mae_param_space = ggplot(data = summaries, aes(x = n_obs, y = median, y
                              label = paste0(summaries[90,]$median %>% round(., 2), ' ± ', (summaries[90,]$upper - summaries[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()+
-  ggtitle('Stationary Distribution\n(100 Parameter Pairs, 100 Iterations per Pair)')+
+  ggtitle('Stationary Distribution\n(100 Parameter Pairs, 1000 Iterations per Pair)')+
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(plot_spi_mae_param_space, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_multiple_paras.png', width = 7, height = 7*.8, units = 'in')

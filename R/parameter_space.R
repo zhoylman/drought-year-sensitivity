@@ -26,7 +26,7 @@ full = bind_rows(process_data(spi_comparison_30, '30 Day'),
                  process_data(spi_comparison_60, '60 Day'),
                  process_data(spi_comparison_90, '90 Day'))
 
-set.seed(99)
+set.seed(100)
 
 random_index = runif(1000000, 1, length(full$time)) %>% as.integer()
 
