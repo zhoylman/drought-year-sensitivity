@@ -498,6 +498,9 @@ summaries_non_stationary_sites = out_non_stationary %>%
 saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary_sites.RDS')
 saveRDS(summaries_non_stationary, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
   
+summaries_non_stationary_sites = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_summary_sites.RDS')
+summaries_non_stationary = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
+
 col = colorRampPalette(c('red', 'blue', 'green'))
 
 param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Site))+
