@@ -295,12 +295,23 @@ ggsave(plot_spi_mae_param_space, file = '/home/zhoylman/drought-year-sensitivity
 ##################### NON-STATIONARY DISTROBUTION #####################
 #######################################################################
 
+spline_fill = function(x){
+  export = data.frame(year = seq(min(x$year), max(x$year), by = 1)) %>%
+    left_join(., x, by = 'year') %>%
+    mutate(spline_rate = predict(smooth.spline(x$year, x$Rate), year)$y,
+           spline_shape = predict(smooth.spline(x$year, x$Shape), year)$y,
+           Rate = ifelse(is.na(Rate), spline_rate, Rate),
+           Shape = ifelse(is.na(Shape), spline_shape, Shape))
+  return(export)
+}
+
 set.seed(100)
+non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS') %>%
+  spline_fill(.)
 #non-stationary distrobution
 #define probability distrobution with shifting parameters (10 decade chunks)
-n_samples = seq(1,88,1)
-n_ = 88
-non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS')
+n_samples = seq(1,length(non_stationary_example$Shape),1)
+n_ = length(non_stationary_example$Shape)
 
 input_matrix = data.frame(x = n_samples, shape = non_stationary_example$Shape, rate = non_stationary_example$Rate)
 
@@ -316,7 +327,7 @@ for(i_n_simulations in 1:n_simulation){
   #randomly generate the distrobtuion each simulation
   data_non_stationary = input_matrix %>%
     mutate(data =  rgamma(x, shape, rate)) %>%
-    mutate(time = seq(1:88))
+    mutate(time = seq(1:n_))
   
   for(i_n_samples in n_samples){
     #pull data from the end of the distrobution backwards
@@ -358,21 +369,21 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   theme_bw(base_size = 16)+
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  ggtitle('Non-Stationary Distribution\n(88 Parameter Pairs, 1000 Iterations)')+
+  ggtitle('Non-Stationary Distribution\n(99 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_non_stationary_mae_spi[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_non_stationary_mae_spi[30,]$median, xend = 25, yend = summary_non_stationary_mae_spi[30,]$median + .25), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = 0, xend = 60, yend = summary_non_stationary_mae_spi[60,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 60, y = summary_non_stationary_mae_spi[60,]$median, xend = 55, yend = summary_non_stationary_mae_spi[60,]$median + .25), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 88, y = 0, xend = 88, yend = summary_non_stationary_mae_spi[88,]$median), linetype = 'dashed', color = 'red')+
-  geom_segment(data = NULL, aes(x = 88, y = summary_non_stationary_mae_spi[88,]$median, xend = 83, yend = summary_non_stationary_mae_spi[88,]$median + .25), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_non_stationary_mae_spi[90,]$median), linetype = 'dashed', color = 'red')+
+  geom_segment(data = NULL, aes(x = 90, y = summary_non_stationary_mae_spi[90,]$median, xend = 83, yend = summary_non_stationary_mae_spi[90,]$median + .25), linetype = 'dashed', color = 'red')+
   
-  geom_text(data = NULL, aes(x = 12, y = summary_non_stationary_mae_spi[30,]$median + .25, 
+  geom_text(data = NULL, aes(x = 12, y = summary_non_stationary_mae_spi[30,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[30,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[30,]$upper - summary_non_stationary_mae_spi[30,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 42, y = summary_non_stationary_mae_spi[60,]$median + .25, 
+  geom_text(data = NULL, aes(x = 42, y = summary_non_stationary_mae_spi[60,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[60,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[60,]$upper - summary_non_stationary_mae_spi[60,]$lower) %>% round(., 2))), hjust = 0)+
-  geom_text(data = NULL, aes(x = 70, y = summary_non_stationary_mae_spi[88,]$median + .25, 
-                             label = paste0(summary_non_stationary_mae_spi[88,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[88,]$upper - summary_non_stationary_mae_spi[88,]$lower) %>% round(., 2))), hjust = 0)+
+  geom_text(data = NULL, aes(x = 70, y = summary_non_stationary_mae_spi[90,]$median + .27, 
+                             label = paste0(summary_non_stationary_mae_spi[90,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[90,]$upper - summary_non_stationary_mae_spi[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
   
@@ -406,10 +417,12 @@ registerDoParallel(cl)
 out_non_stationary = list()
 
 out_non_stationary = foreach(s = 1:length(sites), .packages = c('lmomco', 'tidyverse')) %dopar% {
-  n_samples = seq(1,length(data[[s]]$time),1)
-  n_ = length(data[[s]]$time)
+  input_data = data[[s]] %>% spline_fill(.)
   
-  input_matrix = data.frame(x = n_samples, shape = data[[s]]$Shape, rate = data[[s]]$Rate)
+  n_samples = seq(1,length(input_data$time),1)
+  n_ = length(input_data$time)
+  
+  input_matrix = data.frame(x = n_samples, shape = input_data$Shape, rate = input_data$Rate)
 
   #set up export data frames
   export_non_stationary_df_mae_spi = data.frame(matrix(nrow = length(n_samples), ncol = n_simulation))
@@ -478,7 +491,6 @@ summaries_non_stationary_sites = out_non_stationary %>%
 #saveRDS(summaries_non_stationary_sites, '/home/zhoylman/drought-year-sensitivity/data/param_shift_summary.RDS')
 
 col = colorRampPalette(c('red', 'blue', 'green'))
-
 
 param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = Site))+
   geom_ribbon(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = NULL), fill = 'grey70')+
