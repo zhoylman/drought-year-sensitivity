@@ -287,8 +287,8 @@ plot_spi_mae_param_space = ggplot()+
   geom_ribbon(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'grey70')+
   geom_line(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   theme_bw(base_size = 16)+
-  geom_line(data = summaries_each, aes(x = n_obs, y = median, colour = as.factor(param_pair)))+
-  scale_colour_discrete(guide = F)+
+  geom_line(data = summaries_each, aes(x = n_obs, y = median, colour = as.factor(param_pair)), alpha = 0.3)+
+  scale_colour_discrete(guide = F, limits = rep(1,100))+
   labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summaries[30,]$median), linetype = 'dashed', color = 'red')+

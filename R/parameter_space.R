@@ -9,14 +9,14 @@ process_data = function(x, time_scale){
     bind_rows() %>%
     filter( n_contemporary >= 25,
             n_historical >= 70,
-            shape_contemporary > quantile(shape_contemporary, 0.001),
-            shape_contemporary < quantile(shape_contemporary, 0.999),
-            rate_contemporary > quantile(rate_contemporary, 0.001),
-            rate_contemporary < quantile(rate_contemporary, 0.999),
-            shape_historical > quantile(shape_historical, 0.001),
-            shape_historical < quantile(shape_historical, 0.999),
-            rate_historical > quantile(rate_historical, 0.001),
-            rate_historical < quantile(rate_historical, 0.999)) %>%
+            shape_contemporary > quantile(shape_contemporary, 0.01),
+            shape_contemporary < quantile(shape_contemporary, 0.99),
+            rate_contemporary > quantile(rate_contemporary, 0.01),
+            rate_contemporary < quantile(rate_contemporary, 0.99),
+            shape_historical > quantile(shape_historical, 0.01),
+            shape_historical < quantile(shape_historical, 0.99),
+            rate_historical > quantile(rate_historical, 0.01),
+            rate_historical < quantile(rate_historical, 0.99)) %>%
     mutate(`Timescale` = time_scale)
   return(temp)
 }
@@ -26,7 +26,7 @@ full = bind_rows(process_data(spi_comparison_30, '30 Day'),
                  process_data(spi_comparison_60, '60 Day'),
                  process_data(spi_comparison_90, '90 Day'))
 
-set.seed(100)
+set.seed(100220)
 
 random_index = runif(1000000, 1, length(full$time)) %>% as.integer()
 
