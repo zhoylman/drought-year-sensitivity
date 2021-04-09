@@ -13,7 +13,7 @@ source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
 
 #######################################################################
 ####################### STATIONARY DISTROBUTION #######################
-#######################################################################
+#######################################################################   
 
 #define proabaility distrobution paramters
 shape = 2.5 #alpha
@@ -109,7 +109,7 @@ plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, y
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'CDF Absolute Error')+
+  labs(x = 'Number of Observations in Climatology', y = 'CDF Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_mae[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_mae[30,]$median, xend = 45, yend = summary_mae[30,]$median + .15), linetype = 'dashed', color = 'red')+
@@ -129,7 +129,7 @@ plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = 
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
+  labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_spi_mae[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_spi_mae[30,]$median, xend = 45, yend = summary_spi_mae[30,]$median + .45), linetype = 'dashed', color = 'red')+
@@ -166,7 +166,10 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
                                              (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 3))), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_rate[90,]$median + .025, 
                              label = paste0(summary_rate[90,]$median %>% round(., 2), ' ± ', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 3))), hjust = 0)+
-  scale_x_continuous(breaks = c(0,30,60,90))
+  scale_x_continuous(breaks = c(0,30,60,90))+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   geom_ribbon(fill = 'grey70')+
@@ -189,13 +192,16 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
                                             (summary_shape[60,]$upper - summary_shape[60,]$lower) %>% round(., 2))), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_shape[90,]$median + 1.5, 
                              label = paste0(summary_shape[90,]$median %>% round(., 2), ' ± ', (summary_shape[90,]$upper - summary_shape[90,]$lower) %>% round(., 2))), hjust = 0)+
-  scale_x_continuous(breaks = c(0,30,60,90))
+  scale_x_continuous(breaks = c(0,30,60,90))+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 #combine to single plot
-plot_final = cowplot::plot_grid(plot_rate, plot_shape,plot_mae, plot_spi_mae,
-                                nrow = 2, ncol = 2, align = 'hv')
+plot_final = cowplot::plot_grid(plot_rate, plot_shape, NULL, NULL, plot_mae, plot_spi_mae,
+                                nrow = 3, ncol = 2, align = 'hv', rel_heights = c(1,-0.18,1))
 title = ggdraw() + 
-  draw_label("            Stationary Distribution\n(Single Parameter Pair, 1000 Iterations)",x = 0,hjust = 0,size = 20) +
+  draw_label("                Stationary Climate\n(Single Parameter Pair, 1000 Iterations)",x = 0,hjust = 0,size = 20) +
   theme(plot.margin = margin(0, 0, 0, 200))
 
 final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
@@ -203,7 +209,7 @@ final = plot_grid(title, plot_final,ncol = 1,rel_heights = c(0.1, 1))
 final
 #save
 ggsave(final, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo.png', width = 10, height = 7, units = 'in')
-#fin stationary dist
+#fin single parameter stationary dist
 
 #######################################################################
 ######## STATIONARY DISTROBUTION Multiple Parameters ##################
@@ -259,7 +265,7 @@ out = foreach(i = 1:length(params_space$Shape), .packages = c('lmomco')) %dopar%
 stopCluster(cl)
 
 saveRDS(out, '/home/zhoylman/temp/stationary_monte_carlo_100_params.RDS')
-
+#out = readRDS('/home/zhoylman/temp/stationary_monte_carlo_100_params.RDS')
 for(i in 1:length(out)){
   out[[i]]$param_pair = i
 }
@@ -285,11 +291,11 @@ summaries_each = lapply(out, function(x){return(x %>% mutate(n_obs = n_samples))
 
 plot_spi_mae_param_space = ggplot()+
   geom_ribbon(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'grey70')+
-  geom_line(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   theme_bw(base_size = 16)+
   geom_line(data = summaries_each, aes(x = n_obs, y = median, colour = as.factor(param_pair)), alpha = 0.3)+
+  geom_line(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower))+
   scale_colour_discrete(guide = F, limits = rep(1,100))+
-  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
+  labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summaries[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summaries[30,]$median, xend = 45, yend = summaries[30,]$median + .25), linetype = 'dashed', color = 'red')+
@@ -304,7 +310,7 @@ plot_spi_mae_param_space = ggplot()+
                              label = paste0(summaries[90,]$median %>% round(., 2), ' ± ', (summaries[90,]$upper - summaries[90,]$lower) %>% round(., 2))), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()+
-  ggtitle('Stationary Distribution\n(100 Parameter Pairs, 1000 Iterations per Pair)')+
+  ggtitle('Stationary Climate\n(100 Parameter Pairs, 1000 Iterations per Pair)')+
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(plot_spi_mae_param_space, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_multiple_paras.png', width = 7, height = 7*.8, units = 'in')
@@ -385,9 +391,9 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   geom_ribbon(fill = 'grey70')+
   geom_line()+
   theme_bw(base_size = 16)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
+  labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  ggtitle('Non-Stationary Distribution (CLEMSON UNIV, SC)\n(99 Parameter Pairs, 1000 Iterations)')+
+  ggtitle('Non-Stationary Climate (CLEMSON UNIV, SC)\n(99 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_non_stationary_mae_spi[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_non_stationary_mae_spi[30,]$median, xend = 25, yend = summary_non_stationary_mae_spi[30,]$median + .25), linetype = 'dashed', color = 'red')+
@@ -448,7 +454,7 @@ out_non_stationary = foreach(s = 1:length(sites), .packages = c('lmomco', 'tidyv
   #non-stationary data
   for(i_n_simulations in 1:n_simulation){
     print(i_n_simulations)
-    #randomly generate the distrobtuion each simulation
+    #randomly generate the distrobtuion each simulation 
     data_non_stationary = input_matrix %>%
       mutate(data =  rgamma(x, shape, rate)) %>%
       mutate(time = seq(1:n_))
@@ -525,11 +531,14 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
   #geom_line(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = 'All', linetype = 'All'))+
   theme_bw(base_size = 20)+
   scale_colour_manual(values = pals::glasbey(10) %>% as.vector(), name = NULL)+
-  labs(x = 'Number of Observations in "Climatology"', y = 'SPI Absolute Error')+
+  labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  #ggtitle('Non-Stationary Distribution\n(88 Parameter Pairs, 1000 Iterations)')+
+  #ggtitle('Non-Stationary Climate\n(88 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
-  theme(legend.position="bottom", legend.box = "vertical")+
+  theme(legend.position="top", 
+        legend.box = "vertical", 
+        legend.justification = c(0,0),
+        legend.margin = margin(t = 10, r = 0, b = 0, l = -5, unit = "pt"))+
   facet_wrap(~Timescale)+ 
   ylim(0,1)+
   theme(plot.title = element_text(hjust = 0.5),

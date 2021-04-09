@@ -41,6 +41,9 @@ states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
   filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
   st_geometry()
 
+#read in dataframe of valid stations
+valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
+
 # function to compute SPI
 source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
 
@@ -185,9 +188,6 @@ daily_spi = function(data, time_scale, index_of_interest){
   
   return(output.df)
 } 
-
-#read in dataframe of valid stations
-valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
 #generate the list to contain results
 spi_comparison = list()
@@ -462,11 +462,11 @@ valid_stations_filtered = valid_stations %>%
          D2 = drought_class$D2,
          D3 = drought_class$D3,
          D4 = drought_class$D4,
-         `-2 > SPI [Driest]` = dryness_class$`-2 > SPI`,
-         `-1 > SPI > -2 [Dry]` = dryness_class$`-1 > SPI > -2`,
-         `1 > SPI > -1 [Average]` = dryness_class$`1 > SPI > -1`,
-         `1 > SPI > 2 [Wet]` = dryness_class$`1 > SPI > 2`,
-         `SPI > 2 [Wettest]` = dryness_class$`SPI > 2`)
+         `-2 > SPI` = dryness_class$`-2 > SPI`,
+         `-1 > SPI > -2` = dryness_class$`-1 > SPI > -2`,
+         `1 > SPI > -1` = dryness_class$`1 > SPI > -1`,
+         `1 > SPI > 2` = dryness_class$`1 > SPI > 2`,
+         `SPI > 2` = dryness_class$`SPI > 2`)
   
 #################################################
 ################ Plot the Results ###############
@@ -478,8 +478,12 @@ col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
 
 #classes to loop through for plotting and kriging
 classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
-            '-2 > SPI [Driest]', '-1 > SPI > -2 [Dry]', '1 > SPI > -1 [Average]',
-            '1 > SPI > 2 [Wet]', 'SPI > 2 [Wettest]')
+            '-2 > SPI', '-1 > SPI > -2', '1 > SPI > -1',
+            '1 > SPI > 2', 'SPI > 2')
+
+layman = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
+           'Very Dry Conditions', 'Dry Conditions', 'Normal Conditions',
+           'Wet Conditions', 'Very Wet Conditions')
 
 for(c in 1:length(classes)){
   #define the temp stations assosiated with the class of interest
@@ -493,8 +497,8 @@ for(c in 1:length(classes)){
     scale_color_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
                           oob = scales::squish, guide = F)+
-    theme_bw()+
-    ggtitle(paste0('Average Difference in Daily Summer SPI Values (', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
+    theme_bw(base_size = 15)+
+    ggtitle(paste0('Daily Summer Bias (',layman[c], ', ', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
     theme(legend.position = 'none',
           legend.key.width=unit(2,"cm"),
           plot.title = element_text(hjust = 0.5))
@@ -527,13 +531,14 @@ for(c in 1:length(classes)){
     scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
                          labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
                          oob = scales::squish)+
-    theme_bw()+
+    theme_bw(base_size = 15)+
     theme(legend.position = 'bottom',
-          legend.key.width=unit(2,"cm"))
+          legend.key.width=unit(2,"cm"),
+          legend.text=element_text(size=15))
   #generate the final plot by doing a plot_grid call, first
   #align the plots and shrink the space between them by using an empty plot
   #and reducing the relative height of the middle plot to a negative value
-  final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.2,1), align = 'v')
+  final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
   #save it out
   ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
 
