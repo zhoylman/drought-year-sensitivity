@@ -319,6 +319,8 @@ drought_class_bias = function(x){
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           #  year >= 2000, 
            #filter for a 25 year minimum climatology in the contempary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
@@ -377,8 +379,10 @@ dryness_class_bias = function(x){
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           year >= 2000, 
            #filter for a 25 year minimum climatology in the contempary data
-           n_contemporary >= 25,
+           #n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
     #compute the grouping bins
@@ -420,6 +424,8 @@ bias_all = function(x){
            diff = spi_historical - spi_contemporary)%>%
     #filter the data for months of interest
     filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           #year >= 2000, 
            #filter for a 25 year minimum climatology in the contempary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
@@ -498,7 +504,7 @@ for(c in 1:length(classes)){
                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
                           oob = scales::squish, guide = F)+
     theme_bw(base_size = 15)+
-    ggtitle(paste0('Daily Summer Bias (',layman[c], ', ', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
+    ggtitle(paste0('Daily Summer Bias (',layman[c], ', ', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 2000-2020)'))+
     theme(legend.position = 'none',
           legend.key.width=unit(2,"cm"),
           plot.title = element_text(hjust = 0.5))
