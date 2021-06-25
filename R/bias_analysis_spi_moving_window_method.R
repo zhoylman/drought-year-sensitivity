@@ -288,9 +288,9 @@ tictoc::toc()
 stopCluster(cl)
 
 #save out big list
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/drought-year-sensitivity/data/', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
 
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+spi_comparison = readRDS(paste0('/home/zhoylman/drought-year-sensitivity/data/', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
