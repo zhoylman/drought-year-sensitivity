@@ -530,7 +530,7 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
   geom_line(size = 1)+
   #geom_line(data = summaries_non_stationary, aes(x = n_obs, y = median, ymax = upper, ymin = lower, color = 'All', linetype = 'All'))+
   theme_bw(base_size = 20)+
-  scale_colour_manual(values = pals::glasbey(10) %>% as.vector(), name = NULL)+
+  scale_colour_manual(values = viridis::turbo(10) %>% as.vector(), name = NULL)+
   labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
   #ggtitle('Non-Stationary Climate\n(88 Parameter Pairs, 1000 Iterations)')+

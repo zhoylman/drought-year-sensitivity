@@ -16,7 +16,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 1
+time_scale_id = 3
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -310,7 +310,7 @@ foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'ma
       
       plot_dist = ggplot()+
         geom_line(data = out_tibble, aes(x = precip, y = value, color = key %>% as.numeric), alpha = 0.5)+
-        scale_colour_gradientn(colours = col(100))+
+        scale_colour_gradientn(colours = viridis::turbo(n = 100))+
         theme_bw(base_size = 20)+
         ggtitle(' ')+
         geom_line(data = NULL, aes(x = synthetic_precip, y = pdfgam(synthetic_precip, 
