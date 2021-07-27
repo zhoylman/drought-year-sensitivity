@@ -552,3 +552,4 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
 
 ggsave(param_shift, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary_multiple_sites.png',
        width = 13, height = 6.5, units = 'in', dpi = 300)
+  
