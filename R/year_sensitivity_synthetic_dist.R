@@ -494,11 +494,14 @@ summaries_non_stationary = out_non_stationary %>%
   bind_rows() %>%
   tidyr::pivot_longer(cols = -c(n_obs, site, time_scale)) %>%
   dplyr::select(-name) %>%
-  group_by(n_obs) %>%
+  group_by(n_obs, time_scale) %>%
   summarise(median = median(value, na.rm = T),
             upper =  quantile(value, 0.75, na.rm = T),
             lower = quantile(value, 0.25, na.rm = T)) %>%
-  filter(n_obs <= 100)
+  filter(n_obs <= 100) %>%
+  mutate(time_scale = paste0(time_scale, ' Days')) %>%
+  rename(Timescale = time_scale)
+  
 
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS') %>%
   select(id, state, name) %>%
