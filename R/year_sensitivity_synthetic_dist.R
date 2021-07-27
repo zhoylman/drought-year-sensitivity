@@ -117,11 +117,11 @@ plot_mae = ggplot(data = summary_mae, aes(x = n_obs, y = median, ymax = upper, y
   geom_segment(data = NULL, aes(x = 60, y = summary_mae[60,]$median, xend = 70, yend = summary_mae[60,]$median + .11), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_mae[90,]$median  + .04), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summary_mae[30,]$median + .15,  
-                             label = paste0(summary_mae[30,]$median %>% round(., 2), ' ± ', (summary_mae[30,]$upper - summary_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_mae[30,]$median %>% round(., 2), ' [', (summary_mae[30,]$upper - summary_mae[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summary_mae[60,]$median + .11, 
-                             label = paste0(summary_mae[60,]$median %>% round(., 2), ' ± ', (summary_mae[60,]$upper - summary_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_mae[60,]$median %>% round(., 2), ' [', (summary_mae[60,]$upper - summary_mae[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_mae[90,]$median + .06, 
-                             label = paste0(summary_mae[90,]$median %>% round(., 2), ' ± ', (summary_mae[90,]$upper - summary_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_mae[90,]$median %>% round(., 2), ' [', (summary_mae[90,]$upper - summary_mae[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
   
@@ -137,11 +137,11 @@ plot_spi_mae = ggplot(data = summary_spi_mae, aes(x = n_obs, y = median, ymax = 
   geom_segment(data = NULL, aes(x = 60, y = summary_spi_mae[60,]$median, xend = 70, yend = summary_spi_mae[60,]$median + .35), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_spi_mae[90,]$median  + .13), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summary_spi_mae[30,]$median + .45, 
-                             label = paste0(summary_spi_mae[30,]$median %>% round(., 2), ' ± ', (summary_spi_mae[30,]$upper - summary_spi_mae[30,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_spi_mae[30,]$median %>% round(., 2), ' [', (summary_spi_mae[30,]$upper - summary_spi_mae[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summary_spi_mae[60,]$median + .35, 
-                             label = paste0(summary_spi_mae[60,]$median %>% round(., 2), ' ± ', (summary_spi_mae[60,]$upper - summary_spi_mae[60,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_spi_mae[60,]$median %>% round(., 2), ' [', (summary_spi_mae[60,]$upper - summary_spi_mae[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_spi_mae[90,]$median + .18, 
-                             label = paste0(summary_spi_mae[90,]$median %>% round(., 2), ' ± ', (summary_spi_mae[90,]$upper - summary_spi_mae[90,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_spi_mae[90,]$median %>% round(., 2), ' [', (summary_spi_mae[90,]$upper - summary_spi_mae[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
 
@@ -159,13 +159,13 @@ plot_rate = ggplot(data = summary_rate, aes(x = n_obs, y = median, ymax = upper,
   geom_segment(data = NULL, aes(x = 60, y = summary_rate[60,]$median, xend = 70, yend = summary_rate[60,]$median + 0.05), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_rate[90,]$median  + .015), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summary_rate[30,]$median + .075, 
-                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
-                                            (summary_rate[30,]$upper - summary_rate[30,]$lower) %>% round(., 3))), hjust = 0)+
+                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' [',
+                                            (summary_rate[30,]$upper - summary_rate[30,]$lower) %>% round(., 3), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summary_rate[60,]$median + 0.055, 
-                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' ± ',
-                                             (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 3))), hjust = 0)+
+                             label = paste0(summary_rate[30,]$median %>% round(., 2), ' [',
+                                             (summary_rate[60,]$upper - summary_rate[60,]$lower) %>% round(., 3), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_rate[90,]$median + .025, 
-                             label = paste0(summary_rate[90,]$median %>% round(., 2), ' ± ', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 3))), hjust = 0)+
+                             label = paste0(summary_rate[90,]$median %>% round(., 2), ' [', (summary_rate[90,]$upper - summary_rate[90,]$lower) %>% round(., 3), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
@@ -185,13 +185,13 @@ plot_shape = ggplot(data = summary_shape, aes(x = n_obs, y = median, ymax = uppe
   geom_segment(data = NULL, aes(x = 60, y = summary_shape[60,]$median, xend = 70, yend = summary_shape[60,]$median + 3.5), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_shape[90,]$median  + 1), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summary_shape[30,]$median + 5.5, 
-                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
-                                            (summary_shape[30,]$upper - summary_shape[30,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' [',
+                                            (summary_shape[30,]$upper - summary_shape[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summary_shape[60,]$median + 3.8, 
-                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' ± ',
-                                            (summary_shape[60,]$upper - summary_shape[60,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_shape[30,]$median %>% round(., 2), ' [',
+                                            (summary_shape[60,]$upper - summary_shape[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 79.5, y = summary_shape[90,]$median + 1.5, 
-                             label = paste0(summary_shape[90,]$median %>% round(., 2), ' ± ', (summary_shape[90,]$upper - summary_shape[90,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_shape[90,]$median %>% round(., 2), ' [', (summary_shape[90,]$upper - summary_shape[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
@@ -303,11 +303,11 @@ plot_spi_mae_param_space = ggplot()+
   geom_segment(data = NULL, aes(x = 60, y = summaries[60,]$median, xend = 70, yend = summaries[60,]$median + .15), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summaries[90,]$median  + .08), linetype = 'dashed', color = 'red')+
   geom_text(data = NULL, aes(x = 46, y = summaries[30,]$median + .25, 
-                             label = paste0(summaries[30,]$median %>% round(., 2), ' ± ', (summaries[30,]$upper - summaries[30,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summaries[30,]$median %>% round(., 2), ' [', (summaries[30,]$upper - summaries[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 71, y = summaries[60,]$median + .15, 
-                             label = paste0(summaries[60,]$median %>% round(., 2), ' ± ', (summaries[60,]$upper - summaries[60,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summaries[60,]$median %>% round(., 2), ' [', (summaries[60,]$upper - summaries[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 88, y = summaries[90,]$median + .11, 
-                             label = paste0(summaries[90,]$median %>% round(., 2), ' ± ', (summaries[90,]$upper - summaries[90,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summaries[90,]$median %>% round(., 2), ' [', (summaries[90,]$upper - summaries[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()+
   ggtitle('Stationary Climate\n(100 Parameter Pairs, 1000 Iterations per Pair)')+
@@ -403,11 +403,11 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   geom_segment(data = NULL, aes(x = 90, y = summary_non_stationary_mae_spi[90,]$median, xend = 83, yend = summary_non_stationary_mae_spi[90,]$median + .25), linetype = 'dashed', color = 'red')+
   
   geom_text(data = NULL, aes(x = 12, y = summary_non_stationary_mae_spi[30,]$median + .27, 
-                             label = paste0(summary_non_stationary_mae_spi[30,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[30,]$upper - summary_non_stationary_mae_spi[30,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_non_stationary_mae_spi[30,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[30,]$upper - summary_non_stationary_mae_spi[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 42, y = summary_non_stationary_mae_spi[60,]$median + .27, 
-                             label = paste0(summary_non_stationary_mae_spi[60,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[60,]$upper - summary_non_stationary_mae_spi[60,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_non_stationary_mae_spi[60,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[60,]$upper - summary_non_stationary_mae_spi[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
   geom_text(data = NULL, aes(x = 70, y = summary_non_stationary_mae_spi[90,]$median + .27, 
-                             label = paste0(summary_non_stationary_mae_spi[90,]$median %>% round(., 2), ' ± ', (summary_non_stationary_mae_spi[90,]$upper - summary_non_stationary_mae_spi[90,]$lower) %>% round(., 2))), hjust = 0)+
+                             label = paste0(summary_non_stationary_mae_spi[90,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[90,]$upper - summary_non_stationary_mae_spi[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
   
