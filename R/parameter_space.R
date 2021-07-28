@@ -1,9 +1,9 @@
 library(tidyverse)
-
+  
 spi_comparison_30 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30_days.RDS'))
 spi_comparison_60 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_60_days.RDS'))
 spi_comparison_90 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_90_days.RDS'))
-
+  
 process_data = function(x, time_scale){
   temp = x %>% 
     bind_rows() %>%
@@ -38,7 +38,7 @@ data_contemporary = full[random_index,]%>%
 data_historical =full[random_index,]%>%
   select(shape_historical, rate_historical, Timescale) %>%
   rename(Shape = shape_historical, Rate = rate_historical) %>%
-  mutate(ID = "Historical")
+  mutate(ID = "Period of Record")
 
 final = bind_rows(data_contemporary, data_historical)
 
@@ -57,7 +57,7 @@ distrobution_plot = ggplot(final, aes(x = Shape, y = Rate))+
   theme(strip.background = element_blank(),
         panel.border = element_rect(colour = "black", fill = NA),
         plot.title = element_text(hjust = 0.5))+
-  ggtitle('Gamma Distrobution Parameter Space')+
+  ggtitle('Gamma Distribution Parameter Space')+
   xlim(0,15)+
   ylim(0.01,0.05)
 
@@ -74,9 +74,10 @@ all_together = ggplot(final, aes(x = Shape, y = Rate))+
   theme(strip.background = element_blank(),
         panel.border = element_rect(colour = "black", fill = NA),
         plot.title = element_text(hjust = 0.5))+
-  ggtitle('Gamma Distrobution Parameter Space')+
+  ggtitle('Gamma Distribution Parameter Space')+
   xlim(0,15)+
   ylim(0.01,0.05)+
   geom_point(data = random_montecarlo, aes(x = Shape, y = Rate), color = 'black', fill = 'white', shape = 21)
 
 ggsave(all_together, file = '/home/zhoylman/drought-year-sensitivity/figs/parameter_space_merged.png', height = 7, width = 7, units = 'in')
+        
