@@ -262,7 +262,7 @@ out = foreach(i = 1:length(params_space$Shape), .packages = c('lmomco')) %dopar%
   export_df_spi_mae
 }
 
-stopCluster(cl)
+stopCluster(cl) 
 
 #saveRDS(out, '/home/zhoylman/temp/stationary_monte_carlo_100_params.RDS')
 #out = readRDS('/home/zhoylman/temp/stationary_monte_carlo_100_params.RDS')
