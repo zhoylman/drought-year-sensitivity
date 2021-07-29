@@ -16,7 +16,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -195,10 +195,10 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
 
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
-plotting = T
+plotting = F
 
-selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770'))
-#selected_sites = which(valid_stations$state == 'MD')
+#selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770')) #for plotting
+selected_sites = 1:length(valid_stations$id) # for monte carlo
 #rev up a cluster for parallel computing
 cl = makeCluster(detectCores()-1)
 #register the cluster for doPar

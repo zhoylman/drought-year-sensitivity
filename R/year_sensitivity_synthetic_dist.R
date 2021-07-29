@@ -330,7 +330,7 @@ spline_fill = function(x){
 }
 
 set.seed(100)
-non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS') %>%
+non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/params/param_shift_USC00381770_30_days.RDS') %>%
   spline_fill(.)
 #non-stationary distrobution
 #define probability distrobution with shifting parameters (10 decade chunks)
@@ -434,7 +434,7 @@ data = list.files('/home/zhoylman/drought-year-sensitivity/data/params', full.na
 n_simulation = 1000
 
 #rev up a cluster for parallel computing
-cl = makeCluster(detectCores()-2)
+cl = makeCluster(detectCores()-1)
 #register the cluster for doPar
 registerDoParallel(cl)
 
@@ -490,10 +490,13 @@ out_non_stationary = foreach(s = 1:length(sites), .packages = c('lmomco', 'tidyv
 
 stopCluster(cl)
 
+`%notin%` = Negate(`%in%`)
+
 summaries_non_stationary = out_non_stationary %>%
   bind_rows() %>%
   tidyr::pivot_longer(cols = -c(n_obs, site, time_scale)) %>%
   dplyr::select(-name) %>%
+  dplyr::filter(site %notin% c('USC00381770')) %>%
   group_by(n_obs, time_scale) %>%
   summarise(median = median(value, na.rm = T),
             upper =  quantile(value, 0.75, na.rm = T),
@@ -513,6 +516,7 @@ summaries_non_stationary_sites = out_non_stationary %>%
   mutate(time_scale = paste0(time_scale, ' Days')) %>%
   tidyr::pivot_longer(cols = -c(n_obs, site, time_scale)) %>%
   dplyr::select(-name) %>%
+  dplyr::filter(site %notin% c('USC00381770')) %>%
   group_by(n_obs, site, time_scale) %>%
   summarise(median = median(value, na.rm = T),
             upper =  quantile(value, 0.75, na.rm = T),
