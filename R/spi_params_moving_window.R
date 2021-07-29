@@ -28,8 +28,7 @@ n_minimum = list(123,153,184)
 `%notin%` = Negate(`%in%`)
 
 # import states to filter and for plotting
-states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
-  filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
+states = st_read('/home/zhoylman/drought-year-sensitivity/data/shp/conus_states.shp') %>%
   st_geometry()
 
 # function to compute SPI
