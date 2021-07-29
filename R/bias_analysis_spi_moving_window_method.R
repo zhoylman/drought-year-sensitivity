@@ -20,12 +20,13 @@ library(doParallel)
 library(sf)
 library(automap)
 library(gstat)
+library(spdplyr)
 options(dplyr.summarise.inform = FALSE)
 
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 1
+time_scale_id = 3
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -38,7 +39,7 @@ n_minimum = list(123,153,184)
 
 # import states to filter and for plotting
 states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
-  filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
+  dplyr::filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
   st_geometry()
 
 #read in dataframe of valid stations
@@ -290,7 +291,7 @@ stopCluster(cl)
 #save out big list
 saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+#spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
 lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
 
