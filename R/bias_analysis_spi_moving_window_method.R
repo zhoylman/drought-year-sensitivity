@@ -26,7 +26,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -38,8 +38,7 @@ n_minimum = list(123,153,184)
 `%notin%` = Negate(`%in%`)
 
 # import states to filter and for plotting
-states = st_read('/home/zhoylman/mesonet-dashboard/data/shp/states.shp') %>%
-  dplyr::filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
+states = st_read('/home/zhoylman/drought-year-sensitivity/data/shp/conus_states.shp') %>%
   st_geometry()
 
 #read in dataframe of valid stations
@@ -296,7 +295,7 @@ saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_w
 lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
 
 #drought breaks to compute bias based on different classes
-drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev
+drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
 
 #define function to compute bias for different drought classes
 #determined by the longest period of record SPI values and the
@@ -318,7 +317,7 @@ drought_class_bias = function(x){
     mutate(month = month(time),
            year = year(time),
            #compute the difference in historical (longest clim) 
-           #and the contempary data (last 30 days of data)
+           #and the contempary data (last 30 years of data)
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
@@ -378,14 +377,14 @@ dryness_class_bias = function(x){
     mutate(month = month(time),
            year = year(time),
            #compute the difference in historical (longest clim) 
-           #and the contempary data (last 30 days of data)
+           #and the contempary data (last 30 years of data)
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
            #filter for time period around the USDM
-           year >= 2000, 
+           #year >= 2000, 
            #filter for a 25 year minimum climatology in the contempary data
-           #n_contemporary >= 25,
+           n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
     #compute the grouping bins
