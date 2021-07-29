@@ -330,7 +330,7 @@ spline_fill = function(x){
 }
 
 set.seed(100)
-non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/param_shift_USC00381770.RDS') %>%
+non_stationary_example = readRDS('/home/zhoylman/drought-year-sensitivity/data/params/param_shift_USC00381770_30_days.RDS') %>%
   spline_fill(.)
 #non-stationary distrobution
 #define probability distrobution with shifting parameters (10 decade chunks)
