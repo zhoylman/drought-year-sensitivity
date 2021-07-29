@@ -255,7 +255,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
                  year %in% complete_years$year)
         
         #define the indicies of interest, June - August
-        indicies_of_interest = which(data_filtered$month %in% c(6,7,8) & data_filtered$year > 1990)
+        indicies_of_interest = which(data_filtered$month %in% c(6,7,8) & data_filtered$year > 1990 & data_filtered$year <= 2020)
 
         # map the spi calculation through the indicies of interest 
         temp = indicies_of_interest %>%
