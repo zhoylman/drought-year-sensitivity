@@ -383,7 +383,7 @@ dryness_class_bias = function(x){
     #filter for time period of intest
     filter(month %in% c(6,7,8),
            #filter for time period around the USDM
-           year >= 2000, 
+           #year >= 2000, 
            #filter for a 25 year minimum climatology in the contempary data
            #n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
