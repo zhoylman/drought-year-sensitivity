@@ -6,7 +6,7 @@ library(lmomco)
 library(doParallel)
 library(ggplot2)
 
-time_scale = 90
+time_scale = 30
 months_of_interest = c(6,7,8)
 
 spi_params = function(precip_data, time_scale){

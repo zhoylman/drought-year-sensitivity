@@ -25,7 +25,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -129,7 +129,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     #30 year moving window filter to compute "contempary SPI values"
     contempary_data = data_time_filter %>%
       #this is computed for the most current 30 year time period
-      filter(year > max_year - 29)
+      filter(year >= max_year - 29)
     
     #store params
     params_contempary = gamma_fit_spi(contempary_data$sum, 'params')
@@ -215,7 +215,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
         ) 
         
         #compute years with complete data. the relative restrictions defining
-        #what a complete year is changes depending on the time scale. 
+        #what a complete year changes depending on the time scale. 
         #for example, 30 day time scales only require complete data between May 1 - Aug. 31
         #because the period of interest is June 1 - Aug. 31. However a 60 day time scale 
         #requires data back to April 1 and 90 day back to March 1.
@@ -288,9 +288,11 @@ tictoc::toc()
 stopCluster(cl)
 
 #save out big list
-saveRDS(spi_comparison, paste0('/home/zhoylman/drought-year-sensitivity/data/', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
-spi_comparison = readRDS(paste0('/home/zhoylman/drought-year-sensitivity/data/', '/spi_comparision_moving_window_with_params_', time_scale[[time_scale_id]], '_days.RDS'))
+spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+
+lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.7, -1.2, -1.5, -1.9, -Inf) %>% rev

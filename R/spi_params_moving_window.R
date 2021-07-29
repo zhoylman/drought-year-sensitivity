@@ -16,7 +16,7 @@ options(dplyr.summarise.inform = FALSE)
 # define base parameters 
 # ID to define time scale, months of interest and minimum
 # number of records, coorisponding to "complete data"
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -147,7 +147,7 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
     if(moving_window == T){
       data_time_filter = data_time_filter %>%
         #this is computed for the most current 30 year time period
-        filter(year > max_year - 29)
+        filter(year >= max_year - 29)
     }
     
     #remove zeros because they cause the gamma dist to blow up to Inf
