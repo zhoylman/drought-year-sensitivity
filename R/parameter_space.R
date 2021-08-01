@@ -9,16 +9,7 @@ process_data = function(x, time_scale){
   temp = x %>% 
     bind_rows() %>%
     filter( n_contemporary >= 25,
-            n_historical >= 70,
-            # shape_contemporary > quantile(shape_contemporary, 0.01),
-            # shape_contemporary < quantile(shape_contemporary, 0.99),
-            # rate_contemporary > quantile(rate_contemporary, 0.01),
-            # rate_contemporary < quantile(rate_contemporary, 0.99),
-            # shape_historical > quantile(shape_historical, 0.01),
-            # shape_historical < quantile(shape_historical, 0.99),
-            # rate_historical > quantile(rate_historical, 0.01),
-            # rate_historical < quantile(rate_historical, 0.99)
-            ) %>%
+            n_historical >= 70) %>%
     mutate(`Timescale` = time_scale)
   return(temp)
 }
@@ -50,8 +41,8 @@ saveRDS(random_montecarlo, '/home/zhoylman/drought-year-sensitivity/data/random_
 distrobution_plot = ggplot(final, aes(x = Shape, y = Rate))+
   geom_density_2d_filled(
     aes(fill = ..level..),
-    contour_var = "ndensity", # normalize to each QBs total passes
-    breaks = seq(0.1, 1.0, length.out = 10))+ # drop the lowest passes
+    contour_var = "ndensity", 
+    breaks = seq(0, 1.0, length.out = 10))+ 
   facet_grid(Timescale~ID)+
   scale_fill_viridis_d(guide = F)+
   theme_bw(base_size = 16)+
@@ -69,7 +60,7 @@ all_together = ggplot(final, aes(x = Shape, y = Rate))+
   geom_density_2d_filled(
     aes(fill = ..level..),
     contour_var = "ndensity", # normalize to each QBs total passes
-    breaks = seq(0.1, 1.0, length.out = 10))+ # drop the lowest passes
+    breaks = seq(0, 1.0, length.out = 10))+ # drop the lowest passes
   scale_fill_viridis_d(guide = F)+
   theme_bw(base_size = 16)+
   labs(x = 'Shape', y = 'Rate')+

@@ -288,7 +288,6 @@ summaries_each = lapply(out, function(x){return(x %>% mutate(n_obs = n_samples))
             upper =  quantile(value, 0.75, na.rm = T),
             lower = quantile(value, 0.25, na.rm = T))
   
-
 plot_spi_mae_param_space = ggplot()+
   geom_ribbon(data = summaries, aes(x = n_obs, y = median, ymax = upper, ymin = lower), fill = 'grey70')+
   theme_bw(base_size = 16)+
