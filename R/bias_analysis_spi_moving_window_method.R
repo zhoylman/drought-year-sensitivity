@@ -21,6 +21,7 @@ library(sf)
 library(automap)
 library(gstat)
 library(spdplyr)
+library(automap)
 options(dplyr.summarise.inform = FALSE)
 
 # define base parameters 
@@ -290,271 +291,271 @@ stopCluster(cl)
 #save out big list
 saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
-#spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
+lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
 
+#drought breaks to compute bias based on different classes
+drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
 
+#define function to compute bias for different drought classes
+#determined by the longest period of record SPI values and the
+#UNL definitions of Dx classes (above)
+# this analysis is for Daily Values between June 1 - Aug 31
+drought_class_bias = function(x){
+  #dummy data frame to ensure all levels are present.
+  #we will bind this to the final summary data to ensure continuity
+  dummy_df = x[1:5,]
+  dummy_df[1:5,] = NA
+  dummy_df = dummy_df%>%
+    mutate(drought = as.factor(c('D0', 'D1', 'D2', 'D3', 'D4')),
+           month = NA,
+           year = NA,
+           diff = NA)
+  #summarise
+  temp = x %>%
+    #define some time meta data
+    mutate(month = month(time),
+           year = year(time),
+           #compute the difference in historical (longest clim)
+           #and the contempary data (last 30 years of data)
+           diff = spi_historical - spi_contemporary)%>%
+    #filter for time period of intest
+    filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           #year >= 2000,
+           #filter for a 25 year minimum climatology in the contempary data
+           n_contemporary >= 25,
+           #filter for a 70 year minimum climatology in the historical data
+           n_historical >= 70)%>%
+    #compute the grouping bins
+    mutate(drought = .bincode(spi_historical, drought_breaks)) %>%
+    #drop data that doesnt fit the classes
+    tidyr::drop_na() %>%
+    #revalue the data to be human interperatble
+    mutate(drought = drought %>% as.factor(),
+           drought = plyr::revalue(drought, c(`1` = 'D4',
+                                              `2` = 'D3',
+                                              `3` = 'D2',
+                                              `4` = 'D1',
+                                              `5` = 'D0'))) %>%
+    as_tibble()%>%
+    #rbind our dummy dataframe to ensure all levels are present
+    rbind(., dummy_df) %>%
+    #gefine the group_by structure by drought classes, dont drop missing classes
+    group_by(drought, .drop = FALSE) %>%
+    #compute the median difference
+    summarise(bias = median(diff, na.rm = T))
 
-# 
-# 
-# lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
-# 
-# #drought breaks to compute bias based on different classes
-# drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
-# 
-# #define function to compute bias for different drought classes
-# #determined by the longest period of record SPI values and the
-# #UNL definitions of Dx classes (above)
-# # this analysis is for Daily Values between June 1 - Aug 31
-# drought_class_bias = function(x){
-#   #dummy data frame to ensure all levels are present. 
-#   #we will bind this to the final summary data to ensure continuity
-#   dummy_df = x[1:5,] 
-#   dummy_df[1:5,] = NA
-#   dummy_df = dummy_df%>%
-#     mutate(drought = as.factor(c('D0', 'D1', 'D2', 'D3', 'D4')),
-#            month = NA,
-#            year = NA,
-#            diff = NA)
-#   #summarise
-#   temp = x %>%
-#     #define some time meta data
-#     mutate(month = month(time),
-#            year = year(time),
-#            #compute the difference in historical (longest clim) 
-#            #and the contempary data (last 30 years of data)
-#            diff = spi_historical - spi_contemporary)%>%
-#     #filter for time period of intest
-#     filter(month %in% c(6,7,8),
-#            #filter for time period around the USDM
-#            #  year >= 2000, 
-#            #filter for a 25 year minimum climatology in the contempary data
-#            n_contemporary >= 25,
-#            #filter for a 70 year minimum climatology in the historical data
-#            n_historical >= 70)%>%
-#     #compute the grouping bins
-#     mutate(drought = .bincode(spi_historical, drought_breaks)) %>%
-#     #drop data that doesnt fit the classes
-#     tidyr::drop_na() %>%
-#     #revalue the data to be human interperatble
-#     mutate(drought = drought %>% as.factor(), 
-#            drought = plyr::revalue(drought, c(`1` = 'D4',
-#                                               `2` = 'D3',
-#                                               `3` = 'D2',
-#                                               `4` = 'D1',
-#                                               `5` = 'D0'))) %>%
-#     as_tibble()%>%
-#     #rbind our dummy dataframe to ensure all levels are present
-#     rbind(., dummy_df) %>%
-#     #gefine the group_by structure by drought classes, dont drop missing classes
-#     group_by(drought, .drop = FALSE) %>%
-#     #compute the median difference
-#     summarise(bias = median(diff, na.rm = T)) 
-#   
-#   #reorganize the final data frame and rename data
-#   temp = with(temp, temp[order(drought %>% as.character()),])$bias[1:5]
-#   export = data.frame(temp) %>% t %>% as.data.frame()
-#   colnames(export) = c('D0', 'D1', 'D2', 'D3', 'D4')
-#   rownames(export) = NULL
-#   return(export)
-# }
-# 
-# #drought breaks to compute bias based on different classes
-# generalized_dryness = c(Inf, 2, 1, -1, -2, -Inf) %>% rev
-# 
-# #define function to compute bias for different drought classes
-# #determined by the longest period of record SPI values and the
-# #UNL definitions of Dx classes (above)
-# # this analysis is for Daily Values between June 1 - Aug 31
-# dryness_class_bias = function(x){
-#   #dummy data frame to ensure all levels are present. 
-#   #we will bind this to the final summary data to ensure continuity
-#   dummy_df = x[1:5,] 
-#   dummy_df[1:5,] = NA
-#   dummy_df = dummy_df%>%
-#     mutate(drought = as.factor(c('SPI > 2', '1 > SPI > 2', '1 > SPI > -1', '-1 > SPI > -2', '-2 > SPI')),
-#            month = NA,
-#            year = NA,
-#            diff = NA)
-#   #summarise
-#   temp = x %>%
-#     #define some time meta data
-#     mutate(month = month(time),
-#            year = year(time),
-#            #compute the difference in historical (longest clim) 
-#            #and the contempary data (last 30 years of data)
-#            diff = spi_historical - spi_contemporary)%>%
-#     #filter for time period of intest
-#     filter(month %in% c(6,7,8),
-#            #filter for time period around the USDM
-#            #year >= 2000, 
-#            #filter for a 25 year minimum climatology in the contempary data
-#            n_contemporary >= 25,
-#            #filter for a 70 year minimum climatology in the historical data
-#            n_historical >= 70)%>%
-#     #compute the grouping bins
-#     mutate(drought = .bincode(spi_historical, generalized_dryness)) %>%
-#     #drop data that doesnt fit the classes
-#     tidyr::drop_na() %>%
-#     #revalue the data to be human interperatble
-#     mutate(drought = drought %>% as.factor(), 
-#            drought = plyr::revalue(drought, c(`1` = '-2 > SPI',
-#                                               `2` = '-1 > SPI > -2',
-#                                               `3` = '1 > SPI > -1',
-#                                               `4` = '1 > SPI > 2',
-#                                               `5` = 'SPI > 2'))) %>%
-#     as_tibble()%>%
-#     #rbind our dummy dataframe to ensure all levels are present
-#     rbind(., dummy_df) %>%
-#     #gefine the group_by structure by drought classes, dont drop missing classes
-#     group_by(drought, .drop = FALSE) %>%
-#     #compute the median difference
-#     summarise(bias = median(diff, na.rm = T)) 
-#   
-#   #reorganize the final data frame and rename data
-#   temp = temp$bias[1:5]
-#   export = data.frame(temp) %>% t %>% as.data.frame()
-#   colnames(export) = c('SPI > 2', '1 > SPI > 2', '1 > SPI > -1', '-1 > SPI > -2', '-2 > SPI') %>% rev
-#   rownames(export) = NULL
-#   return(export)
-# }
-# 
-# #define function to compute bias for any time the historical
-# #record suggests drought (spi < -0.5)
-# bias_all = function(x){
-#   #summarise data
-#   temp = x %>%
-#     #define some time meta data
-#     mutate(month = month(time),
-#            year = year(time),
-#            #compute the difference in the historical and contempary data
-#            diff = spi_historical - spi_contemporary)%>%
-#     #filter the data for months of interest
-#     filter(month %in% c(6,7,8),
-#            #filter for time period around the USDM
-#            #year >= 2000, 
-#            #filter for a 25 year minimum climatology in the contempary data
-#            n_contemporary >= 25,
-#            #filter for a 70 year minimum climatology in the historical data
-#            n_historical >= 70)%>%
-#     #drop nas
-#     tidyr::drop_na() %>%
-#     #convert to tibble
-#     as_tibble()%>%
-#     #compute the median difference in values
-#     summarise(bias = median(diff, na.rm = T)) 
-#   
-#   return(temp$bias)
-# }
-# 
-# # compute average bias for all data together (wet and dry, all D classes together)
-# bias = lapply(spi_comparison, bias_all) %>%
-#   unlist()
-# 
-# print(paste0('Stations Lost (%): ', sum(is.na(bias))/length(bias)*100))
-# 
-# #drought classes broken out
-# drought_class = lapply(spi_comparison, drought_class_bias) %>%
-#   data.table::rbindlist(.) %>%
-#   as_tibble()
-# 
-# apply(drought_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
-# 
-# #drought classes broken out
-# dryness_class = lapply(spi_comparison, dryness_class_bias) %>%
-#   data.table::rbindlist(.) %>%
-#   as_tibble()
-# 
-# apply(dryness_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
-# 
-# #merge into single dataframe that summarizes all results
-# valid_stations_filtered = valid_stations %>%
-#   mutate(`Average Bias` = bias,
-#          D0 = drought_class$D0,
-#          D1 = drought_class$D1,
-#          D2 = drought_class$D2,
-#          D3 = drought_class$D3,
-#          D4 = drought_class$D4,
-#          `-2 > SPI` = dryness_class$`-2 > SPI`,
-#          `-1 > SPI > -2` = dryness_class$`-1 > SPI > -2`,
-#          `1 > SPI > -1` = dryness_class$`1 > SPI > -1`,
-#          `1 > SPI > 2` = dryness_class$`1 > SPI > 2`,
-#          `SPI > 2` = dryness_class$`SPI > 2`)
-#   
-# #################################################
-# ################ Plot the Results ###############
-# #################################################
-# 
-# #define plotting parameters
-# #color ramp
-# col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
-# 
-# #classes to loop through for plotting and kriging
-# classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
-#             '-2 > SPI', '-1 > SPI > -2', '1 > SPI > -1',
-#             '1 > SPI > 2', 'SPI > 2')
-# 
-# layman = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
-#            'Very Dry Conditions', 'Dry Conditions', 'Normal Conditions',
-#            'Wet Conditions', 'Very Wet Conditions')
-# 
-# for(c in 1:length(classes)){
-#   #define the temp stations assosiated with the class of interest
-#   temp_stations = valid_stations_filtered %>%
-#     tidyr::drop_na(classes[c]) %>%
-#     st_as_sf
-# 
-#   #first lets plot the point data itself
-#   pts_plot = ggplot(temp_stations)+
-#     geom_sf(data = states)+
-#     geom_sf(aes(color = get(classes[c])))+
-#     scale_color_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
-#                           labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
-#                           oob = scales::squish, guide = F)+
-#     theme_bw(base_size = 15)+
-#     ggtitle(paste0('Daily Summer Bias (',layman[c], ', ', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 2000-2020)'))+
-#     theme(legend.position = 'none',
-#           legend.key.width=unit(2,"cm"),
-#           plot.title = element_text(hjust = 0.5))
-#   
-#   #krige the reults using autofitting the variogram (package automap)
-#   #template raster to interpolate over
-#   template = raster::raster(resolution=c(1/3,1/3),
-#                             crs = sp::CRS("+init=epsg:4326")) %>%
-#     raster::crop(., as(states, 'Spatial')) %>%
-#     raster::rasterToPoints() %>%
-#     as.data.frame() %>%
-#     st_as_sf(., coords = c('x', 'y')) 
-#   st_crs(template) = st_crs(4326)
-#   
-#   #fit the variogram
-#   vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
-#   #krige the variogram results
-#   krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
-#     st_intersection(states)
-#   #convert to a point system for tile plotting
-#   krig_pts = st_coordinates(krig) %>%
-#     as_tibble() %>%
-#     mutate(val = krig$var1.pred)
-#   #define the kriged map plot
-#   krig_plot = ggplot(krig)+
-#     geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
-#     geom_sf(data = states, fill = 'transparent', color = 'black')+
-#     labs(x = "", y = "")+
-#     ggtitle(NULL)+
-#     scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
-#                          labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
-#                          oob = scales::squish)+
-#     theme_bw(base_size = 15)+
-#     theme(legend.position = 'bottom',
-#           legend.key.width=unit(2,"cm"),
-#           legend.text=element_text(size=15))
-#   #generate the final plot by doing a plot_grid call, first
-#   #align the plots and shrink the space between them by using an empty plot
-#   #and reducing the relative height of the middle plot to a negative value
-#   final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
-#   #save it out
-#   ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
-# 
-#   #fin
-# }
+  #reorganize the final data frame and rename data
+  temp = with(temp, temp[order(drought %>% as.character()),])$bias[1:5]
+  export = data.frame(temp) %>% t %>% as.data.frame()
+  colnames(export) = c('D0', 'D1', 'D2', 'D3', 'D4')
+  rownames(export) = NULL
+  return(export)
+}
+
+#drought breaks to compute bias based on different classes
+generalized_dryness = c(Inf, 2, 1, -1, -2, -Inf) %>% rev
+
+#define function to compute bias for different drought classes
+#determined by the longest period of record SPI values and the
+#UNL definitions of Dx classes (above)
+# this analysis is for Daily Values between June 1 - Aug 31
+dryness_class_bias = function(x){
+  #dummy data frame to ensure all levels are present.
+  #we will bind this to the final summary data to ensure continuity
+  dummy_df = x[1:5,]
+  dummy_df[1:5,] = NA
+  dummy_df = dummy_df%>%
+    mutate(drought = as.factor(c('SPI > 2', '1 > SPI > 2', '1 > SPI > -1', '-1 > SPI > -2', '-2 > SPI')),
+           month = NA,
+           year = NA,
+           diff = NA)
+  #summarise
+  temp = x %>%
+    #define some time meta data
+    mutate(month = month(time),
+           year = year(time),
+           #compute the difference in historical (longest clim)
+           #and the contempary data (last 30 years of data)
+           diff = spi_historical - spi_contemporary)%>%
+    #filter for time period of intest
+    filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           #year >= 2000,
+           #filter for a 25 year minimum climatology in the contempary data
+           n_contemporary >= 25,
+           #filter for a 70 year minimum climatology in the historical data
+           n_historical >= 70)%>%
+    #compute the grouping bins
+    mutate(drought = .bincode(spi_historical, generalized_dryness)) %>%
+    #drop data that doesnt fit the classes
+    tidyr::drop_na() %>%
+    #revalue the data to be human interperatble
+    mutate(drought = drought %>% as.factor(),
+           drought = plyr::revalue(drought, c(`1` = '-2 > SPI',
+                                              `2` = '-1 > SPI > -2',
+                                              `3` = '1 > SPI > -1',
+                                              `4` = '1 > SPI > 2',
+                                              `5` = 'SPI > 2'))) %>%
+    as_tibble()%>%
+    #rbind our dummy dataframe to ensure all levels are present
+    rbind(., dummy_df) %>%
+    #gefine the group_by structure by drought classes, dont drop missing classes
+    group_by(drought, .drop = FALSE) %>%
+    #compute the median difference
+    summarise(bias = median(diff, na.rm = T))
+
+  #reorganize the final data frame and rename data
+  temp = temp$bias[1:5]
+  export = data.frame(temp) %>% t %>% as.data.frame()
+  colnames(export) = c('SPI > 2', '1 > SPI > 2', '1 > SPI > -1', '-1 > SPI > -2', '-2 > SPI') %>% rev
+  rownames(export) = NULL
+  return(export)
+}
+
+#define function to compute bias for any time the historical
+#record suggests drought (spi < -0.5)
+bias_all = function(x){
+  #summarise data
+  temp = x %>%
+    #define some time meta data
+    mutate(month = month(time),
+           year = year(time),
+           #compute the difference in the historical and contempary data
+           diff = spi_historical - spi_contemporary)%>%
+    #filter the data for months of interest
+    filter(month %in% c(6,7,8),
+           #filter for time period around the USDM
+           #year >= 2000,
+           #filter for a 25 year minimum climatology in the contempary data
+           n_contemporary >= 25,
+           #filter for a 70 year minimum climatology in the historical data
+           n_historical >= 70)%>%
+    #drop nas
+    tidyr::drop_na() %>%
+    #convert to tibble
+    as_tibble()%>%
+    #compute the median difference in values
+    summarise(bias = median(diff, na.rm = T))
+
+  return(temp$bias)
+}
+
+# compute average bias for all data together (wet and dry, all D classes together)
+bias = lapply(spi_comparison, bias_all) %>%
+  unlist()
+
+print(paste0('Stations Lost (%): ', sum(is.na(bias))/length(bias)*100))
+
+#drought classes broken out
+drought_class = lapply(spi_comparison, drought_class_bias) %>%
+  data.table::rbindlist(.) %>%
+  as_tibble()
+
+apply(drought_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
+
+#drought classes broken out
+dryness_class = lapply(spi_comparison, dryness_class_bias) %>%
+  data.table::rbindlist(.) %>%
+  as_tibble()
+
+apply(dryness_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
+
+#merge into single dataframe that summarizes all results
+valid_stations_filtered = valid_stations %>%
+  mutate(`Average Bias` = bias,
+         D0 = drought_class$D0,
+         D1 = drought_class$D1,
+         D2 = drought_class$D2,
+         D3 = drought_class$D3,
+         D4 = drought_class$D4,
+         `-2 > SPI` = dryness_class$`-2 > SPI`,
+         `-1 > SPI > -2` = dryness_class$`-1 > SPI > -2`,
+         `1 > SPI > -1` = dryness_class$`1 > SPI > -1`,
+         `1 > SPI > 2` = dryness_class$`1 > SPI > 2`,
+         `SPI > 2` = dryness_class$`SPI > 2`)
+
+print(paste0('Negative Bias during SPI < -2: ', 
+             (sum(valid_stations_filtered$`-2 > SPI` < 0, na.rm = T)/ 
+                sum(!is.na(valid_stations_filtered$`-2 > SPI`)))*100))
+
+#################################################
+################ Plot the Results ###############
+#################################################
+
+#define plotting parameters
+#color ramp
+col = colorRampPalette((c('darkred', 'red', 'white', 'blue', 'darkblue')))
+
+#classes to loop through for plotting and kriging
+classes = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
+            '-2 > SPI', '-1 > SPI > -2', '1 > SPI > -1',
+            '1 > SPI > 2', 'SPI > 2')
+
+layman = c('Average Bias','D0', 'D1', 'D2', 'D3', 'D4',
+           'Very Dry Conditions', 'Dry Conditions', 'Normal Conditions',
+           'Wet Conditions', 'Very Wet Conditions')
+
+for(c in 1:length(classes)){
+  #define the temp stations assosiated with the class of interest
+  temp_stations = valid_stations_filtered %>%
+    tidyr::drop_na(classes[c]) %>%
+    st_as_sf
+
+  #first lets plot the point data itself
+  pts_plot = ggplot(temp_stations)+
+    geom_sf(data = states)+
+    geom_sf(aes(color = get(classes[c])))+
+    scale_color_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+                          labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+                          oob = scales::squish, guide = F)+
+    theme_bw(base_size = 15)+
+    ggtitle(paste0('Daily Summer Bias (',layman[c], ', ', classes[c], ')\n', time_scale[[time_scale_id]], ' Day SPI (June 1 - August 31, 1991-2020)'))+
+    theme(legend.position = 'none',
+          legend.key.width=unit(2,"cm"),
+          plot.title = element_text(hjust = 0.5))
+
+  #krige the reults using autofitting the variogram (package automap)
+  #template raster to interpolate over
+  template = raster::raster(resolution=c(1/3,1/3),
+                            crs = sp::CRS("+init=epsg:4326")) %>%
+    raster::crop(., as(states, 'Spatial')) %>%
+    raster::rasterToPoints() %>%
+    as.data.frame() %>%
+    st_as_sf(., coords = c('x', 'y'))
+  st_crs(template) = st_crs(4326)
+
+  #fit the variogram
+  vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
+  #krige the variogram results
+  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
+    st_intersection(states)
+  #convert to a point system for tile plotting
+  krig_pts = st_coordinates(krig) %>%
+    as_tibble() %>%
+    mutate(val = krig$var1.pred)
+  #define the kriged map plot
+  krig_plot = ggplot(krig)+
+    geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
+    geom_sf(data = states, fill = 'transparent', color = 'black')+
+    labs(x = "", y = "")+
+    ggtitle(NULL)+
+    scale_fill_gradientn(colours = col(100), breaks = c(-0.5, 0, 0.5), limits = c(-0.5, 0.5),
+                         labels = c('-0.5 (Dry Bias)', '0 (No Bias)', '0.5 (Wet Bias)'), name = "",
+                         oob = scales::squish)+
+    theme_bw(base_size = 15)+
+    theme(legend.position = 'bottom',
+          legend.key.width=unit(2,"cm"),
+          legend.text=element_text(size=15))
+  #generate the final plot by doing a plot_grid call, first
+  #align the plots and shrink the space between them by using an empty plot
+  #and reducing the relative height of the middle plot to a negative value
+  final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
+  #save it out
+  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+
+  #fin
+}
+    

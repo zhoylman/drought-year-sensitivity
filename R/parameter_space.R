@@ -1,22 +1,24 @@
 library(tidyverse)
+library(ggplot2)
   
-spi_comparison_30 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30_days.RDS'))
-spi_comparison_60 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_60_days.RDS'))
-spi_comparison_90 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_90_days.RDS'))
+spi_comparison_30 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_30_days.RDS'))
+spi_comparison_60 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_60_days.RDS'))
+spi_comparison_90 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_90_days.RDS'))
   
 process_data = function(x, time_scale){
   temp = x %>% 
     bind_rows() %>%
     filter( n_contemporary >= 25,
             n_historical >= 70,
-            shape_contemporary > quantile(shape_contemporary, 0.01),
-            shape_contemporary < quantile(shape_contemporary, 0.99),
-            rate_contemporary > quantile(rate_contemporary, 0.01),
-            rate_contemporary < quantile(rate_contemporary, 0.99),
-            shape_historical > quantile(shape_historical, 0.01),
-            shape_historical < quantile(shape_historical, 0.99),
-            rate_historical > quantile(rate_historical, 0.01),
-            rate_historical < quantile(rate_historical, 0.99)) %>%
+            # shape_contemporary > quantile(shape_contemporary, 0.01),
+            # shape_contemporary < quantile(shape_contemporary, 0.99),
+            # rate_contemporary > quantile(rate_contemporary, 0.01),
+            # rate_contemporary < quantile(rate_contemporary, 0.99),
+            # shape_historical > quantile(shape_historical, 0.01),
+            # shape_historical < quantile(shape_historical, 0.99),
+            # rate_historical > quantile(rate_historical, 0.01),
+            # rate_historical < quantile(rate_historical, 0.99)
+            ) %>%
     mutate(`Timescale` = time_scale)
   return(temp)
 }
