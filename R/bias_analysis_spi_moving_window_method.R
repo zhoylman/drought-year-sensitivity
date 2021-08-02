@@ -293,7 +293,7 @@ saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_w
 
 spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
-lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% max()
+lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% quantile(., 1)
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
@@ -480,6 +480,10 @@ valid_stations_filtered = valid_stations %>%
 print(paste0('Negative Bias during SPI < -2: ', 
              (sum(valid_stations_filtered$`-2 > SPI` < 0, na.rm = T)/ 
                 sum(!is.na(valid_stations_filtered$`-2 > SPI`)))*100))
+
+print(paste0('Positive Bias during SPI > 2: ', 
+             (sum(valid_stations_filtered$`SPI > 2` > 0, na.rm = T)/ 
+                sum(!is.na(valid_stations_filtered$`SPI > 2`)))*100))
 
 #################################################
 ################ Plot the Results ###############
