@@ -21,7 +21,6 @@ library(sf)
 library(automap)
 library(gstat)
 library(spdplyr)
-library(automap)
 options(dplyr.summarise.inform = FALSE)
 
 # define base parameters 
@@ -293,7 +292,7 @@ saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_w
 
 spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
-lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% quantile(., 1)
+lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% quantile(., 0)
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
