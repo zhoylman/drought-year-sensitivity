@@ -392,7 +392,7 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   theme_bw(base_size = 16)+
   labs(x = 'Number of Observations in Climatology', y = 'SPI Absolute Error')+
   theme(plot.title = element_text(hjust = 0.5))+
-  ggtitle('Non-Stationary Climate (CLEMSON UNIV, SC)\n(99 Parameter Pairs, 1000 Iterations)')+
+  ggtitle('Non-Stationary Climate (CLEMSON UNIV, SC)\n(100 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_segment(data = NULL, aes(x = 30, y = 0, xend = 30, yend = summary_non_stationary_mae_spi[30,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 30, y = summary_non_stationary_mae_spi[30,]$median, xend = 25, yend = summary_non_stationary_mae_spi[30,]$median + .25), linetype = 'dashed', color = 'red')+
@@ -401,18 +401,18 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_non_stationary_mae_spi[90,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = summary_non_stationary_mae_spi[90,]$median, xend = 83, yend = summary_non_stationary_mae_spi[90,]$median + .25), linetype = 'dashed', color = 'red')+
   
-  geom_text(data = NULL, aes(x = 12, y = summary_non_stationary_mae_spi[30,]$median + .27, 
+  geom_text(data = NULL, aes(x = 15, y = summary_non_stationary_mae_spi[30,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[30,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[30,]$upper - summary_non_stationary_mae_spi[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
-  geom_text(data = NULL, aes(x = 42, y = summary_non_stationary_mae_spi[60,]$median + .27, 
+  geom_text(data = NULL, aes(x = 45, y = summary_non_stationary_mae_spi[60,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[60,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[60,]$upper - summary_non_stationary_mae_spi[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
-  geom_text(data = NULL, aes(x = 70, y = summary_non_stationary_mae_spi[90,]$median + .27, 
+  geom_text(data = NULL, aes(x = 73, y = summary_non_stationary_mae_spi[90,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[90,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[90,]$upper - summary_non_stationary_mae_spi[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
   
 plot_mae_spi
 
-ggsave(plot_mae_spi, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 7, height = 7*.8, units = 'in')
+ggsave(plot_mae_spi, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 10, height = 7*.8, units = 'in')
 
 
 #######################################################################
@@ -541,7 +541,7 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
   theme(plot.title = element_text(hjust = 0.5))+
   #ggtitle('Non-Stationary Climate\n(88 Parameter Pairs, 1000 Iterations)')+
   scale_x_continuous(breaks = c(0,30,60,90))+
-  theme(legend.position="top", 
+  theme(legend.position="bottom", 
         legend.box = "vertical", 
         legend.justification = c(0,0),
         legend.margin = margin(t = 10, r = 0, b = 0, l = -5, unit = "pt"))+
@@ -550,9 +550,9 @@ param_shift = ggplot(data = summaries_non_stationary_sites, aes(x = n_obs, y = m
   theme(plot.title = element_text(hjust = 0.5),
         strip.background = element_blank(),
         panel.border = element_rect(colour = "black", fill = NA),
-        legend.text=element_text(size=10))+
+        legend.text=element_text(size=12))+
   guides(colour=guide_legend(nrow=2,byrow=TRUE))
 
 ggsave(param_shift, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary_multiple_sites.png',
-       width = 13, height = 6.5, units = 'in', dpi = 300)
+       width = 15, height = 6.5, units = 'in', dpi = 300)
   
