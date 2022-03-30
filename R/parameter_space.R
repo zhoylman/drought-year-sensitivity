@@ -1,6 +1,7 @@
 library(tidyverse)
 library(ggplot2)
-  
+
+#can be downloaded from zenodo repo
 spi_comparison_30 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_30_days.RDS'))
 spi_comparison_60 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_60_days.RDS'))
 spi_comparison_90 = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_90_days.RDS'))

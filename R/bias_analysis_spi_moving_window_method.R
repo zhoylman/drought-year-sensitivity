@@ -45,7 +45,7 @@ states = st_read('/home/zhoylman/drought-year-sensitivity/data/shp/conus_states.
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
 # function to compute SPI
-source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
+source('~/drought-year-sensitivity/R/funs/gamma_fit_spi.R')
 
 # wrapper function for gamma_fit_spi that processes precip data and 
 # computes spi for different time periods. The pricipal purpose 

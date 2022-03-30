@@ -9,7 +9,7 @@ library(doParallel)
 library(sf)
 
 #source functions to compute probabilistic CDF and probabilistic parameters
-source('~/drought-year-sensitivity/R/gamma_fit_spi.R')
+source('~/drought-year-sensitivity/R/funs/gamma_fit_spi.R')
 
 #######################################################################
 ####################### STATIONARY DISTROBUTION #######################
