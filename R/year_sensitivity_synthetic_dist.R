@@ -312,7 +312,7 @@ plot_spi_mae_param_space = ggplot()+
   ggtitle('Stationary Climate\n(100 Parameter Pairs, 1000 Iterations per Pair)')+
   theme(plot.title = element_text(hjust = 0.5))
 
-ggsave(plot_spi_mae_param_space, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_multiple_paras.png', width = 7, height = 7*.8, units = 'in')
+ggsave(plot_spi_mae_param_space, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_multiple_paras.png', width = 7, height = 8*.8, units = 'in')
 
 #######################################################################
 ##################### NON-STATIONARY DISTROBUTION #####################
@@ -401,18 +401,18 @@ plot_mae_spi = ggplot(data = summary_non_stationary_mae_spi, aes(x = n_obs, y = 
   geom_segment(data = NULL, aes(x = 90, y = 0, xend = 90, yend = summary_non_stationary_mae_spi[90,]$median), linetype = 'dashed', color = 'red')+
   geom_segment(data = NULL, aes(x = 90, y = summary_non_stationary_mae_spi[90,]$median, xend = 83, yend = summary_non_stationary_mae_spi[90,]$median + .25), linetype = 'dashed', color = 'red')+
   
-  geom_text(data = NULL, aes(x = 15, y = summary_non_stationary_mae_spi[30,]$median + .27, 
+  geom_text(data = NULL, aes(x = 18, y = summary_non_stationary_mae_spi[30,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[30,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[30,]$upper - summary_non_stationary_mae_spi[30,]$lower) %>% round(., 2), ']')), hjust = 0)+
-  geom_text(data = NULL, aes(x = 45, y = summary_non_stationary_mae_spi[60,]$median + .27, 
+  geom_text(data = NULL, aes(x = 48, y = summary_non_stationary_mae_spi[60,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[60,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[60,]$upper - summary_non_stationary_mae_spi[60,]$lower) %>% round(., 2), ']')), hjust = 0)+
-  geom_text(data = NULL, aes(x = 73, y = summary_non_stationary_mae_spi[90,]$median + .27, 
+  geom_text(data = NULL, aes(x = 76, y = summary_non_stationary_mae_spi[90,]$median + .27, 
                              label = paste0(summary_non_stationary_mae_spi[90,]$median %>% round(., 2), ' [', (summary_non_stationary_mae_spi[90,]$upper - summary_non_stationary_mae_spi[90,]$lower) %>% round(., 2), ']')), hjust = 0)+
   scale_x_continuous(breaks = c(0,30,60,90))+
   geom_line()
   
 plot_mae_spi
 
-ggsave(plot_mae_spi, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 10, height = 7*.8, units = 'in')
+ggsave(plot_mae_spi, file = '/home/zhoylman/drought-year-sensitivity/figs/year_sensitivity_monte_carlo_non_stationary.png', width = 12, height = 7*.8, units = 'in')
 
 
 #######################################################################
