@@ -31,44 +31,8 @@ n_minimum = list(123,153,184)
 states = st_read('/home/zhoylman/drought-year-sensitivity/data/shp/conus_states.shp') %>%
   st_geometry()
 
-# function to compute SPI
-gamma_fit_spi = function(x, export_opts = 'SPI') {
-  #load the package needed for these computations
-  library(lmomco)
-  #first try gamma
-  tryCatch(
-    {
-      x = as.numeric(x)
-      #if precip is 0, replace it with 0.01mm Really Dry
-      if(any(x == 0, na.rm = T)){
-        index = which(x == 0)
-        x[index] = 0.01
-      }
-      #Unbiased Sample Probability-Weighted Moments (following Beguer ́ıa et al 2014)
-      pwm = pwm.ub(x)
-      #Probability-Weighted Moments to L-moments
-      lmoments_x = pwm2lmom(pwm)
-      #fit gamma
-      fit.gam = pargam(lmoments_x)
-      #compute probabilistic cdf 
-      fit.cdf = cdfgam(x, fit.gam)
-      #compute spi
-      spi = qnorm(fit.cdf, mean = 0, sd = 1)
-      if(export_opts == 'CDF'){
-        return(fit.cdf) 
-      }
-      if(export_opts == 'params'){
-        return(fit.gam) 
-      }
-      if(export_opts == 'SPI'){
-        return(spi) 
-      }
-    },
-    #else return NA
-    error=function(cond) {
-      return(NA)
-    })
-}
+#source spi fun
+source('~/drought-year-sensitivity/R/funs/gamma_fit_spi.R')
 
 # wrapper function for spi_fun that processes precip data and 
 # computes spi for different time periods. The pricipal purpose 
@@ -149,9 +113,6 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
         filter(year >= max_year - 29)
     }
     
-    #remove zeros because they cause the gamma dist to blow up to Inf
-    data_time_filter$sum[data_time_filter$sum == 0] = 0.01
-    
     #compute date time for day/year of interest
     date_time = precip_data$time[first_date_breaks[length(first_date_breaks)]] %>% as.Date()
     
@@ -195,7 +156,7 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
 
 valid_stations = readRDS('/home/zhoylman/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
-plotting = F
+plotting = T
 
 #selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770')) #for plotting
 selected_sites = 1:length(valid_stations$id) # for monte carlo
@@ -205,6 +166,7 @@ cl = makeCluster(detectCores()-1)
 registerDoParallel(cl)
 
 tic()
+#Fig 2 is USC00381770 or index # 1770
 
 foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'magrittr',
                                'lmomco', 'sf')) %dopar% {
