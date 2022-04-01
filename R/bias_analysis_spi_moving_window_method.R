@@ -548,7 +548,7 @@ for(c in 1:length(classes)){
   #and reducing the relative height of the middle plot to a negative value
   final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
   #save it out
-  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window_test/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
 
   #fin
 }
