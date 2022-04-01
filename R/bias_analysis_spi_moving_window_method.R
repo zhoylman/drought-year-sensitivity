@@ -64,10 +64,10 @@ daily_spi = function(data, time_scale, index_of_interest){
     month_of_interest = data$month[index_of_interest]
     
     #filter data to not be newer then the index of interest
-    #this is important to emulate practial constraints on 
+    #this is important to emulate practical constraints on 
     #drought monitoring. It is impossible to use future
-    #data to compute the probability distrobution. Although,
-    #it should be noted that it is routine practice to 
+    #data to compute the probability distribution in practice. Although,
+    #it should be noted that it is common to 
     #back calculate drought metrics using reference periods that
     #include data that is in the future with respect to the time
     #period of interest. for example, SPI for 1/1/2015 could be computed
@@ -75,8 +75,8 @@ daily_spi = function(data, time_scale, index_of_interest){
     precip_data = data %>%
       filter(year <= max_year)
     
-    #calcualte index vectors for defining breaks used in the summation procedure.
-    #the important function here is to compute the indicies for the start 
+    #calculate index vectors for defining breaks used in the summation procedure.
+    #the important function here is to compute the indices for the start 
     #period and end period (summation period). 
     first_date_breaks = which(precip_data$mday == mday_of_interest & precip_data$month == month_of_interest)
     second_date_breaks = first_date_breaks-(time_scale-1)
@@ -91,7 +91,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     #create slice vectors and group by vectors, this will be used for the 
     #summation procedure below. importantly, this is used instead of year
     # identifiers (or other date based identifiers) because summation periods 
-    #can span multiple years. 
+    #can span multiple years (not in this case but indeed in other cases). 
     for(j in 1:length(first_date_breaks)){
       if(j == 1){
         slice_vec = seq(second_date_breaks[j],first_date_breaks[j], by = 1)
@@ -114,14 +114,11 @@ daily_spi = function(data, time_scale, index_of_interest){
       #summation of data (and convert to mm)
       dplyr::summarise(sum = sum(data/10, na.rm = T),
                        #add the year identifier here,
-                       #this can be dont for this special
+                       #this can be done for this special
                        #case because summation does not 
                        #span multiple years. the group by/
                        #slice by methodology is more abstractable
                        year = median(year))
-    
-    #remove zeros because they cause the gamma dist to blow up to Inf
-    data_time_filter$sum[data_time_filter$sum == 0] = 0.01
     
     #compute date time for day/year of interest
     date_time = precip_data$time[first_date_breaks[length(first_date_breaks)]] %>% as.Date()
@@ -135,6 +132,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     params_contempary = gamma_fit_spi(contempary_data$sum, 'params')
     params_historical = gamma_fit_spi(data_time_filter$sum, 'params')
   
+    #generate storage data frame
     if(is.na(params_contempary) == T | is.na(params_historical) == T){
       output.df = data.frame(time = NA,
                              spi_historical = NA,
@@ -152,7 +150,7 @@ daily_spi = function(data, time_scale, index_of_interest){
       #define output dataframe and conduct the SPI calculation. SPI is computed using the 
       #afor-defined gamma_fit_spi
       output.df = data.frame(time = date_time,
-                             #compute spi using l-moments and the gamma distrobution
+                             #compute spi using l-moments and the gamma distribution
                              #for the historical time period (longest period of record)
                              spi_historical = gamma_fit_spi(data_time_filter$sum, 'SPI'),
                              #store parameters
@@ -165,7 +163,7 @@ daily_spi = function(data, time_scale, index_of_interest){
                              #store parameters
                              shape_contemporary = params_contempary$para[1],
                              rate_contemporary = 1/params_contempary$para[2],
-                             #report nymber of years in the SPI calculation
+                             #report number of years in the SPI calculation
                              n_contemporary = length(contempary_data$sum))%>%
         `rownames<-`(1)
     }
@@ -290,9 +288,8 @@ stopCluster(cl)
 #save out big list
 saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
+#read in big list if already processed
 spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
-
-lapply(spi_comparison, function(x){max(x$n_contemporary)}) %>% unlist() %>% quantile(., 0)
 
 #drought breaks to compute bias based on different classes
 drought_breaks = c(-0.5, -0.8, -1.3, -1.6, -2, -Inf) %>% rev
@@ -321,15 +318,13 @@ drought_class_bias = function(x){
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
-           #filter for time period around the USDM
-           #year >= 2000,
-           #filter for a 25 year minimum climatology in the contempary data
+           #filter for a 25 year minimum climatology in the contemporary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
     #compute the grouping bins
     mutate(drought = .bincode(spi_historical, drought_breaks)) %>%
-    #drop data that doesnt fit the classes
+    #drop data that doesn't fit the classes
     tidyr::drop_na() %>%
     #revalue the data to be human interperatble
     mutate(drought = drought %>% as.factor(),
@@ -341,7 +336,7 @@ drought_class_bias = function(x){
     as_tibble()%>%
     #rbind our dummy dataframe to ensure all levels are present
     rbind(., dummy_df) %>%
-    #gefine the group_by structure by drought classes, dont drop missing classes
+    #refine the group_by structure by drought classes, don't drop missing classes
     group_by(drought, .drop = FALSE) %>%
     #compute the median difference
     summarise(bias = median(diff, na.rm = T))
@@ -377,13 +372,11 @@ dryness_class_bias = function(x){
     mutate(month = month(time),
            year = year(time),
            #compute the difference in historical (longest clim)
-           #and the contempary data (last 30 years of data)
+           #and the contemporary data (last 30 years of data)
            diff = spi_historical - spi_contemporary)%>%
     #filter for time period of intest
     filter(month %in% c(6,7,8),
-           #filter for time period around the USDM
-           #year >= 2000,
-           #filter for a 25 year minimum climatology in the contempary data
+           #filter for a 25 year minimum climatology in the contemporary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
@@ -401,7 +394,7 @@ dryness_class_bias = function(x){
     as_tibble()%>%
     #rbind our dummy dataframe to ensure all levels are present
     rbind(., dummy_df) %>%
-    #gefine the group_by structure by drought classes, dont drop missing classes
+    #define the group_by structure by drought classes, don't drop missing classes
     group_by(drought, .drop = FALSE) %>%
     #compute the median difference
     summarise(bias = median(diff, na.rm = T))
@@ -414,21 +407,18 @@ dryness_class_bias = function(x){
   return(export)
 }
 
-#define function to compute bias for any time the historical
-#record suggests drought (spi < -0.5)
+#define function to compute bias for all time periods
 bias_all = function(x){
   #summarise data
   temp = x %>%
     #define some time meta data
     mutate(month = month(time),
            year = year(time),
-           #compute the difference in the historical and contempary data
+           #compute the difference in the historical and contemporary data
            diff = spi_historical - spi_contemporary)%>%
     #filter the data for months of interest
     filter(month %in% c(6,7,8),
-           #filter for time period around the USDM
-           #year >= 2000,
-           #filter for a 25 year minimum climatology in the contempary data
+           #filter for a 25 year minimum climatology in the contemporary data
            n_contemporary >= 25,
            #filter for a 70 year minimum climatology in the historical data
            n_historical >= 70)%>%
@@ -455,7 +445,7 @@ drought_class = lapply(spi_comparison, drought_class_bias) %>%
 
 apply(drought_class, 2, FUN = function(x){sum(is.na(x))/length(x)*100})
 
-#drought classes broken out
+#dryness classes broken out
 dryness_class = lapply(spi_comparison, dryness_class_bias) %>%
   data.table::rbindlist(.) %>%
   as_tibble()
@@ -532,8 +522,9 @@ for(c in 1:length(classes)){
 
   #fit the variogram
   vgm = autofitVariogram(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'))
+  
   #krige the variogram results
-  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, as(temp_stations, 'Spatial'), template, model=vgm$var_model) %>%
+  krig = krige(temp_stations[classes[c]] %>% data.frame() %>% .[,1] ~ 1, temp_stations, template, model=vgm$var_model) %>%
     st_intersection(states)
   #convert to a point system for tile plotting
   krig_pts = st_coordinates(krig) %>%
@@ -557,7 +548,7 @@ for(c in 1:length(classes)){
   #and reducing the relative height of the middle plot to a negative value
   final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
   #save it out
-  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+  ggsave(final, file = paste0('/home/zhoylman/drought-year-sensitivity/figs/moving_window_test/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
 
   #fin
 }
