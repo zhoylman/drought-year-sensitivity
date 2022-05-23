@@ -2,8 +2,8 @@
 # drought-year-sensitivity
 
 <!-- badges: start -->
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/{github_id}?urlpath=rstudio)
-[![DOI](https://zenodo.org/badge/{github_id}.svg)](https://zenodo.org/badge/latestdoi/{github_id})
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zhoylman/drought-year-sensitivity/master?urlpath=rstudio)
+[![DOI](https://zenodo.org/badge/zhoylman/drought-year-sensitivity.svg)](https://zenodo.org/badge/latestdoi/zhoylman/drought-year-sensitivity)
 <!-- badges: end -->
 
 
