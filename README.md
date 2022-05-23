@@ -29,7 +29,7 @@ The simplest way to explore the text, code and data is to click on
 [binder](https://mybinder.org/v2/gh/zhoylman/drought-year-sensitivity/master?urlpath=rstudio)
 to open an instance of RStudio in your browser, which will have the
 compendium files ready to work with. Binder uses
-(rocker-project.org)\[rocker-project.org Docker\] images to ensure a
+[rocker-project.org Docker images](rocker-project.org) to ensure a
 consistent and reproducible computational environment. These Docker
 images can also be used locally.
 
