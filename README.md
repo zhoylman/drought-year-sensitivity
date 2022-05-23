@@ -3,7 +3,7 @@
 
 <!-- badges: start -->
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zhoylman/drought-year-sensitivity/master?urlpath=rstudio)
-[![DOI](https://zenodo.org/badge/zhoylman/drought-year-sensitivity.svg)](https://zenodo.org/badge/latestdoi/zhoylman/drought-year-sensitivity)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5047799.svg)](https://doi.org/10.5281/zenodo.5047799)
 <!-- badges: end -->
 
 
