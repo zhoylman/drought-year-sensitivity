@@ -94,11 +94,9 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
     second_date_breaks = first_date_breaks-(time_scale-1)
     
     #if there are negative indexes remove last year (incomplete data range)
-    if(!all(second_date_breaks < 0)){
-      pos_index = which(second_date_breaks > 0)
-      first_date_breaks = first_date_breaks[c(pos_index)]
-      second_date_breaks = second_date_breaks[c(pos_index)]
-    }
+    pos_index = which(second_date_breaks > 0)
+    first_date_breaks = first_date_breaks[c(pos_index)]
+    second_date_breaks = second_date_breaks[c(pos_index)]
     
     #create slice vectors and group by vectors, this will be used for the 
     #summation procedure below. importantly, this is used instead of year
@@ -144,7 +142,7 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
     #compute gamma distrobution params
     params = gamma_fit_spi(data_time_filter$sum, 'params')
     
-    if(is.na(params) == T){
+    if(anyNA(params) == T){
       output.df = data.frame(time = NA,
                              shape = NA,
                              rate = NA,
@@ -153,7 +151,7 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
                              n = NA)
     }
     
-    if(is.na(params) == F){
+    if(anyNA(params) == F){
       #define output dataframe and conduct the SPI calculation. SPI is computed using the 
       #afor-defined spi_fun
       output.df = data.frame(time = date_time,
@@ -182,10 +180,11 @@ gamma_params = function(data, time_scale, index_of_interest, moving_window = T){
 valid_stations = readRDS('~/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
 
 # if plotting is true, plotting functions below will be run. 
-plotting = T
+# we only plot a few station as examples - c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770')
+plotting = F
 
-#selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770')) #for plotting
-selected_sites = 1:length(valid_stations$id) # for monte carlo
+selected_sites = which(valid_stations$id %in% c('USW00024137', 'USC00111265', 'USC00143239', 'USC00381770')) #for plotting
+#selected_sites = 1:length(valid_stations$id) # for monte carlo
 #rev up a cluster for parallel computing
 cl = makeCluster(detectCores()-1)
 #register the cluster for doPar
@@ -246,7 +245,7 @@ foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'ma
            year %in% complete_years$year)
   
   #define the indicies of interest, August 1st for plotting and Monte Carlo
-  indicies_of_interest = which(data_filtered$month %in% 8 & data_filtered$mday %in% 1)
+  indicies_of_interest = which(data_filtered$month %in% 8 & data_filtered$mday %in% 1 & data_filtered$year <= 2020)
   
   # map the spi calculation through the indicies of interest with moving window defined as T
   temp = indicies_of_interest %>%
@@ -276,10 +275,18 @@ foreach(s = selected_sites, .packages = c('rnoaa', 'tidyverse', 'lubridate', 'ma
     rename(Shape = shape, Rate = rate, `Mean Precipitation (mm)` = mean_p,
            `CV Precipitation` = cv_p)
   
-  #if its greater than 100 years of data, save it out for monte carlo simulations
-  if(length(params_merged$time) >= 100){
-    saveRDS(params_merged, paste0('~/drought-year-sensitivity/data/params/param_shift_'
-                                  , valid_stations$id[s], '_',time_scale[[time_scale_id]], '_days.RDS'))
+  # save out data if plotting is F
+  if(plotting == F){
+    #if its greater than 100 years of data, save it out for monte carlo simulations
+    if(length(params_merged$time) >= 100){
+      saveRDS(params_merged, paste0('~/drought-year-sensitivity/data/params/param_shift_'
+                                    , valid_stations$id[s], '_',time_scale[[time_scale_id]], '_days.RDS'))
+    }
+    #save out clemson Univ. station for figure and monte carlo
+    if(s == 1770 & time_scale[[time_scale_id]] == 30){
+      saveRDS(params_merged, paste0('~/drought-year-sensitivity/data/params/param_shift_'
+                                    , valid_stations$id[s], '_',time_scale[[time_scale_id]], '_days.RDS'))
+    }
   }
   
   #if user would like plotting functions, set to true above

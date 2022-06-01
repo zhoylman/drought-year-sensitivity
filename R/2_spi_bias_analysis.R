@@ -48,7 +48,7 @@ options(dplyr.summarise.inform = FALSE)
 # number of records, coorisponding to "complete data"
 # time scale here is the only parameter that needs to be changed
 # to run different timescales. 1 = 30 day, 2 = 60 day, 3 = 30 day. 
-time_scale_id = 3
+time_scale_id = 1
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -308,10 +308,10 @@ stopCluster(cl)
 # save out big list - Define where you want this to be saved,
 # I typically use a folder called "temp-drought" in my home directory, 
 # but this can be changed to anywhere here and the line below. 
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('~/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #read in big list if already processed
-#spi_comparison = readRDS(paste0('/home/zhoylman/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+#spi_comparison = readRDS(paste0('~/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 generalized_dryness = c(Inf, 2, 1, -1, -2, -Inf) %>% rev
@@ -507,9 +507,8 @@ for(c in 1:length(classes)){
   #and reducing the relative height of the middle plot to a negative value
   final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
   #save it out
-  #ggsave(final, file = paste0('~/drought-year-sensitivity/figs/moving_window_bias/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
-  ggsave(final, file = paste0('~/temp-drought/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
-  
+  ggsave(final, file = paste0('~/drought-year-sensitivity/figs/moving_window_bias/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+
   #fin
 }
     
