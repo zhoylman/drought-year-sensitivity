@@ -48,7 +48,7 @@ options(dplyr.summarise.inform = FALSE)
 # number of records, coorisponding to "complete data"
 # time scale here is the only parameter that needs to be changed
 # to run different timescales. 1 = 30 day, 2 = 60 day, 3 = 30 day. 
-time_scale_id = 1
+time_scale_id = 3
 time_scale = list(30,60,90)
 
 months_of_interest = list(c(5,6,7,8),
@@ -104,11 +104,9 @@ daily_spi = function(data, time_scale, index_of_interest){
     second_date_breaks = first_date_breaks-(time_scale-1)
     
     #if there are negative indexes remove last year (incomplete data range)
-    if(!all(second_date_breaks < 0)){
-      pos_index = which(second_date_breaks > 0)
-      first_date_breaks = first_date_breaks[c(pos_index)]
-      second_date_breaks = second_date_breaks[c(pos_index)]
-    }
+    pos_index = which(second_date_breaks > 0)
+    first_date_breaks = first_date_breaks[c(pos_index)]
+    second_date_breaks = second_date_breaks[c(pos_index)]
     
     #create slice vectors and group by vectors, this will be used for the 
     #summation procedure below. importantly, this is used instead of year
@@ -155,7 +153,7 @@ daily_spi = function(data, time_scale, index_of_interest){
     params_historical = gamma_fit_spi(data_time_filter$sum, 'params')
   
     #generate storage data frame
-    if(is.na(params_contempary) == T | is.na(params_historical) == T){
+    if(anyNA(params_contempary) == T | anyNA(params_historical) == T){
       output.df = data.frame(time = NA,
                              spi_historical = NA,
                              shape_historical = NA,
@@ -168,7 +166,7 @@ daily_spi = function(data, time_scale, index_of_interest){
         `rownames<-`(1)
     }
     
-    if(is.na(params_contempary) == F & is.na(params_historical) == F){
+    if(anyNA(params_contempary) == F & anyNA(params_historical) == F){
       #define output dataframe and conduct the SPI calculation. SPI is computed using the 
       #afor-defined gamma_fit_spi
       output.df = data.frame(time = date_time,
@@ -274,7 +272,7 @@ spi_comparison = foreach(s = 1:length(valid_stations$id),
           filter(month %in% months_of_interest[[time_scale_id]],
                  year %in% complete_years$year)
         
-        #define the indicies of interest, June - August
+        #define the indicies of interest, June - August, 1991 - 2020
         indicies_of_interest = which(data_filtered$month %in% c(6,7,8) & data_filtered$year > 1990 & data_filtered$year <= 2020)
 
         # map the spi calculation through the indicies of interest 
@@ -308,12 +306,12 @@ tictoc::toc()
 stopCluster(cl)
 
 # save out big list - Define where you want this to be saved,
-# I typically use a folder called "temp" in my home directory, 
+# I typically use a folder called "temp-drought" in my home directory, 
 # but this can be changed to anywhere here and the line below. 
-saveRDS(spi_comparison, paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+saveRDS(spi_comparison, paste0('/home/zhoylman/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #read in big list if already processed
-spi_comparison = readRDS(paste0('/home/zhoylman/temp', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
+#spi_comparison = readRDS(paste0('/home/zhoylman/temp-drought', '/spi_comparision_moving_window_with_params_30year_', time_scale[[time_scale_id]], '_days.RDS'))
 
 #drought breaks to compute bias based on different classes
 generalized_dryness = c(Inf, 2, 1, -1, -2, -Inf) %>% rev
@@ -356,7 +354,7 @@ dryness_class_bias = function(x){
                                               `2` = '-1 > SPI > -2',
                                               `3` = '1 > SPI > -1',
                                               `4` = '1 > SPI > 2',
-                                              `5` = 'SPI > 2'))) %>%
+                                              `5` = 'SPI > 2'),warn_missing=F)) %>%
     #convert to tibble
     as_tibble()%>%
     #rbind our dummy dataframe to ensure all levels are present
@@ -492,7 +490,7 @@ for(c in 1:length(classes)){
     
   #define the kriged map plot
   krig_plot = ggplot(krig)+
-    geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val))+
+    geom_tile(data = krig_pts, aes(x = X, y = Y, fill = val), width = 1/3, height = 1/3)+
     geom_sf(data = states, fill = 'transparent', color = 'black')+
     labs(x = "", y = "")+
     ggtitle(NULL)+
@@ -509,8 +507,9 @@ for(c in 1:length(classes)){
   #and reducing the relative height of the middle plot to a negative value
   final = cowplot::plot_grid(pts_plot, NULL, krig_plot, ncol = 1, rel_heights = c(1,-0.17,1), align = 'v')
   #save it out
-  ggsave(final, file = paste0('~/drought-year-sensitivity/figs/moving_window/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
-
+  #ggsave(final, file = paste0('~/drought-year-sensitivity/figs/moving_window_bias/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+  ggsave(final, file = paste0('~/temp-drought/spi_bias_maps_',classes[c],'_',time_scale[[time_scale_id]],'day_timescale_June1-Aug31.png'), width = 7, height = 10, units = 'in')
+  
   #fin
 }
     

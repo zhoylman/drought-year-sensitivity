@@ -27,6 +27,16 @@
 # For example a 60 day timescale requires data from April - August,
 # and 90 day timescale requires data from March - August.
 
+# NOTE! This script was originally written in 2020. Therefore, there are 
+# more stations to meet the criteria now than there were in 2020 (as more stations
+# will have 70 years of viable data). 
+# The dataset: ~/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS 
+# is the original dataset as computed in 2020. For continuity with other scripts 
+# in this repository, the save function file name below has been modified to:
+# ~/drought-year-sensitivity/data/valid_stations_70year_summer_baseline_new.RDS
+# However, the general functionality of this script holds, but may yield slightly 
+# different results than the original run. 
+
 #######################################################################
 
 #load required libraries
@@ -48,7 +58,7 @@ months_of_interest = c(5,6,7,8)
 `%notin%` = Negate(`%in%`)
 
 #states for clipping
-states = st_read('~/drought-year-sensitivity/data/shp/states.shp/states.shp') %>%
+states = st_read('~/drought-year-sensitivity/data/shp/states.shp') %>%
   filter(STATE_ABBR %notin% c('AK', 'HI', 'VI')) %>%
   st_geometry()
 
@@ -65,45 +75,53 @@ st_crs(stations_sf) = st_crs(4326)
 filtered_stations = stations_sf %>%
   filter(element == 'PRCP',
          first_year <= 1950,
-         last_year == 2020) %>%
+         #original code was == 2020, as code was written in 2020
+         #adapted to be >= 2020
+         last_year >= 2020) %>%
   st_intersection(., states)
 
 #rev up the socket cluster for parallel processing
-cl = makeCluster(6)
+cl = makeCluster(20)
 registerDoParallel(cl)
 
 #in parallel, compute the number of valid years in sequence
 nobs_list = foreach(s = 1:length(filtered_stations$id))%dopar%{
-  #load required package for each R instance
-  library(rnoaa)
-  library(tidyverse)
-  library(lubridate)
+  tryCatch({
+    #load required package for each R instance
+    library(rnoaa)
+    library(tidyverse)
+    library(lubridate)
+    
+    #import raw data
+    data_raw = ghcnd_search(
+      filtered_stations$id[s],
+      date_min = NULL,
+      date_max = NULL,
+      var = "PRCP"
+    )
+    
+    #compute summer obs per year
+    seasonal_obs = data_raw %$%
+      prcp %>%
+      mutate(year = year(date),
+             month = month(date)) %>%
+      filter(month %in% months_of_interest) %>%
+      drop_na() %>%
+      group_by(year) %>%
+      summarize(n = length(prcp)) %>%
+      #filter for complete data
+      filter(n == 123)# May 1 - Aug 31
+    
+    #define out df id = station ID, nobs = number of complete years
+    out = data.frame(id = filtered_stations$id[s], nobs = length(seasonal_obs$year))
+    
+    #export in foreach
+    out
+  }, error = function(e){
+    out = data.frame(id = filtered_stations$id[s], nobs = NA)
+    out
+  })
   
-  #import raw data
-  data_raw = ghcnd_search(
-    filtered_stations$id[s],
-    date_min = NULL,
-    date_max = NULL,
-    var = "PRCP"
-  )
-  
-  #compute summer obs per year
-  seasonal_obs = data_raw %$%
-    prcp %>%
-    mutate(year = year(date),
-           month = month(date)) %>%
-    filter(month %in% months_of_interest) %>%
-    drop_na() %>%
-    group_by(year) %>%
-    summarize(n = length(prcp)) %>%
-    #filter for complete data
-    filter(n == 123)# May 1 - Aug 31
-  
-  #define out df id = station ID, nobs = number of complete years
-  out = data.frame(id = filtered_stations$id[s], nobs = length(seasonal_obs$year))
-  
-  #export in foreach
-  out
 }
 
 #stop cluster
@@ -121,5 +139,5 @@ final_valid = filtered_stations %>%
 plot(final_valid$geometry, xlab = '', ylab = '', main = paste0('70+ Years Summeritme Precipitation (n = ', length(final_valid$id), ')'))
 plot(states, add = T)
 
-#save it out for later use
-saveRDS(final_valid, file = '~/drought-year-sensitivity/data/valid_stations_70year_summer_baseline.RDS')
+#save it out for later use 
+saveRDS(final_valid, file = '~/drought-year-sensitivity/data/valid_stations_70year_summer_baseline_new.RDS')
