@@ -18,7 +18,7 @@ Kelsey G. Jencso.
 
 This git repository contains:
 
-  - [:file\_folder: R](R): R code for running the analyses in the manuscript, including code to reproduce the figures.
+  - [:file\_folder: R](R): R code for running the analyses in the manuscript, including code to reproduce the figures. Each script is labelled with a number indicating the correct order to run the scripts. 
   - [:file\_folder: figs](figs): Plots and other
     illustrations from the publication
   - [:file\_folder: data](data): Data output from the analysis
@@ -49,3 +49,4 @@ Please cite the *Nature Communications* publication, above, as well as this comp
 
 **Data :** [CC-0](http://creativecommons.org/publicdomain/zero/1.0/)
 attribution requested in reuse
+
